@@ -752,7 +752,7 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
 
 public int Sort_MapWeight(int index1, int index2, Handle weightArr, Handle nameArr)
 {
-	static float fl1, fl2
+	static float fl1, fl2;
 	fl1 = GetArrayCell(weightArr, index1);
 	fl2 = GetArrayCell(weightArr, index2);
 	
