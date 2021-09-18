@@ -691,6 +691,20 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
         //DEBUG_MESSAGE("No items in the pool. Returning false.")
         return false;
     }
+    
+    //custom: shuffle array once more
+    //bogo sort?
+    int ord1, ord2;
+    for (new i = 0; i < total; i++)
+    {
+    	ord1 = GetRandomInt(0, total - 1);
+    	do { ord2 = GetRandomInt(0, total - 1); } while(ord1 == ord2);
+    	
+    	SwapArrayItems(weightArr, ord1, ord2);
+    	SwapArrayItems(nameArr, ord1, ord2);
+    }
+    
+    SortADTArrayCustom(weightArr, Sort_MapWeight, nameArr);
 
     //DEBUG_MESSAGE("Setting up array of weights.")
     //Convert the adt_array of weights to a normal array.
@@ -703,6 +717,13 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
     //make the effective range [0, totalweight).
     new Float:rand = GetURandomFloat() * ArraySum(weights, total);
     new Float:runningTotal = 0.0; //keeps track of total so far
+    
+    //LogUMCMessage("--- MAP LIST ---");
+    for (new i = 0; i < total; i++)
+    {
+    	GetArrayString(nameArr, i, buffer, size);
+    	//LogUMCMessage("\'%s\', Weight: %.2f", buffer, weights[i]);
+    }
     
     //DEBUG_MESSAGE("Find the winner in the pool.")
     //Determine if a map is the winner for each map in the arrays.
@@ -729,6 +750,20 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
     return false;
 }
 
+public int Sort_MapWeight(int index1, int index2, Handle weightArr, Handle nameArr)
+{
+	static float fl1, fl2
+	fl1 = GetArrayCell(weightArr, index1);
+	fl2 = GetArrayCell(weightArr, index2);
+	
+	if(fl1 < fl2)
+	{
+		SwapArrayItems(nameArr, index1, index2);
+		return 1;
+	}
+	
+	return 0;
+}
 
 //Utility function to sum up an array of floats.
 stock Float:ArraySum(const Float:floats[], size)

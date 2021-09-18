@@ -34,7 +34,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 public Plugin:myinfo =
 {
     name        = "[UMC] Ultimate Mapchooser Core",
-    author      = "Previous:Steell,Powerlord - Current: Mr.Silence",
+    author      = "Previous:Steell,Powerlord - Current: Mr.Silence (Foolish Edit)",
     description = "Core component for [UMC]",
     version     = PL_VERSION,
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
