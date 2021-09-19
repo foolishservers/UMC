@@ -392,6 +392,8 @@ public OnClientPutInServer(client)
 //Called when a player types in chat. Required to handle user commands.
 public Action:OnPlayerChat(client, const String:command[], argc)
 {
+    // since we need to change it to handled at some point (custom)
+    Action returnval = Plugin_Continue;
     //Return immediately if nothing was typed.
     if (argc == 0) 
     {
@@ -401,6 +403,7 @@ public Action:OnPlayerChat(client, const String:command[], argc)
     //Get what was typed.
     decl String:text[13];
     GetCmdArg(1, text, sizeof(text));
+    
     
     // Handle RTV client-command if RTV is enabled AND the client typed a valid RTV command AND
     // the required number of clients for RTV hasn't been reached already AND the client isn't the console.
@@ -416,7 +419,7 @@ public Action:OnPlayerChat(client, const String:command[], argc)
     {
         AttemptRTV(client);
     }
-    return Plugin_Continue;
+    return returnval;
 }
 
 //Called after a client has left the server. Required for updating the RTV threshold.
