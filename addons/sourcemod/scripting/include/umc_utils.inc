@@ -718,12 +718,12 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
     new Float:rand = GetURandomFloat() * ArraySum(weights, total);
     new Float:runningTotal = 0.0; //keeps track of total so far
     
-    //LogUMCMessage("--- MAP LIST ---");
+    /*LogUMCMessage("--- MAP LIST ---");
     for (new i = 0; i < total; i++)
     {
     	GetArrayString(nameArr, i, buffer, size);
-    	//LogUMCMessage("\'%s\', Weight: %.2f", buffer, weights[i]);
-    }
+    	LogUMCMessage("\'%s\', Weight: %.2f", buffer, weights[i]);
+    }*/
     
     //DEBUG_MESSAGE("Find the winner in the pool.")
     //Determine if a map is the winner for each map in the arrays.
