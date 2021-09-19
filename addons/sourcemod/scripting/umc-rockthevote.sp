@@ -404,7 +404,15 @@ public Action:OnPlayerChat(client, const String:command[], argc)
     
     // Handle RTV client-command if RTV is enabled AND the client typed a valid RTV command AND
     // the required number of clients for RTV hasn't been reached already AND the client isn't the console.
-    if (StrEqual(text, "rtv", false) || StrEqual(text, "rockthevote", false))
+    // added korean support xdddd
+    if(StrEqual(text, "/ㄳㅍ", false) || StrEqual(text, "/ㄱㅅㅍ", false))
+    {
+		AttemptRTV(client);
+		returnval = Plugin_Handled;
+    }
+    else if (StrEqual(text, "rtv", false) || StrEqual(text, "rockthevote", false)
+    || StrEqual(text, "ㄳㅍ", false) || StrEqual(text, "ㄱㅅㅍ", false)
+    || StrEqual(text, "!ㄳㅍ", false) || StrEqual(text, "!ㄱㅅㅍ", false))
     {
         AttemptRTV(client);
     }
