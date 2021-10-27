@@ -2583,7 +2583,21 @@ bool:GetRandomMap(Handle:kv, String:buffer[], size)
     {
         //Get the name of the map.
         KvGetSectionName(kv, temp, sizeof(temp));
+		
+        // custom
+        // filter out maps by recent GetMapHistory
+        // after 5 maps
+        int size2 = (GetMapHistorySize() >= 5) ? 5 : GetMapHistorySize();
+        char mapname[64]; char lol[2]; bool skip = false; int lol2;
+
+        for(int i = 0; i < size2; i++)
+        {
+            GetMapHistory(i, mapname, sizeof(mapname), lol, 2, lol2);
+            if(StrEqual(mapname, temp)) skip = true;
+        }
         
+        if(skip) continue;
+
         //Add the map to the random pool.
         PushArrayCell(weightArr, GetWeight(kv));
         PushArrayString(nameArr, temp);
