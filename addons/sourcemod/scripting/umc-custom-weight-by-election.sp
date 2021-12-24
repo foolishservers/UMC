@@ -8,7 +8,7 @@
 
 bool db_createTableSuccess = false;
 
-char db_createTable[] = "CREATE TABLE IF NOT EXISTS `umc_weight` (`map` VARCHAR(256) NOT NULL UNIQUE, `weight` INT NOT NULL);";
+char db_createTable[] = "CREATE TABLE IF NOT EXISTS `umc_weight` (`map` VARCHAR(256) NOT NULL UNIQUE, `group` VARCHAR(256), `weight` INT NOT NULL);";
 char db_insertRow[] = "INSERT IGNORE INTO `umc_weight` SET `map` = '%s', `weight` = 0;";
 char db_selectRow[] = "SELECT `weight` FROM `umc_weight` WHERE `map` = '%s' LIMIT 1;";
 char db_updateRow[] = "UPDATE `umc_weight` SET `weight` = %d WHERE `map` = '%s';";
