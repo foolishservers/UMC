@@ -14,7 +14,9 @@ char db_selectRow[] = "SELECT `weight` FROM `umc_weight` WHERE `map` = '%s' LIMI
 char db_updateRow[] = "UPDATE `umc_weight` SET `weight` = %d WHERE `map` = '%s';";
 
 ConVar g_cvarPointAdd;
+ConVar g_cvarPointMultiplier;
 int g_iPointAdd = 3;
+float g_fPointMultiplier = 1.0;
 
 public Plugin myinfo =
 {
@@ -30,8 +32,10 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases");
 
 	g_cvarPointAdd = CreateConVar("umcc_pointadd", "3", "", _, true, 1.0);
+	g_cvarPointMultiplier = CreateConVar("umcc_pointmultiplier", "1", "", _, true, 0.0);
 
 	g_cvarPointAdd.AddChangeHook(CVC_PointAdd);
+	g_cvarPointMultiplier.AddChangeHook(CVC_PointMultiplier);
 }
 
 Database connect2DB()
@@ -117,7 +121,7 @@ public int UMC_OnReweightMap(Handle kv, const char[] map, const char[] group)
 		delete hQuery;
 	}
 	
-	UMC_AddWeightModifier(1 + (point * 0.1));
+	UMC_AddWeightModifier(1 + (point * g_fPointMultiplier));
 	point += g_iPointAdd;
 	
 	{
@@ -190,4 +194,9 @@ public void OnMapEnd()
 public void CVC_PointAdd(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	g_iPointAdd = StringToInt(newValue);
+}
+
+public void CVC_PointMultiplier(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	g_fPointMultiplier = StringToFloat(newValue);
 }
