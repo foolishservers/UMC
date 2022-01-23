@@ -8,13 +8,13 @@
 
 bool db_createTableSuccess = false;
 
-char db_createTable[] = "CREATE TABLE IF NOT EXISTS `umc_map_weight` ( \
+char db_createMapTable[] = "CREATE TABLE IF NOT EXISTS `umc_map_weight` ( \
 	`MapName` VARCHAR(256) NOT NULL, \
 	`GroupName` VARCHAR(256) NOT NULL, \
 	`Weight` INT NOT NULL, \
 	PRIMARY KEY (`MapName`, `GroupName`) \
-); \
-CREATE TABLE IF NOT EXISTS `umc_group_weight` ( \
+);";
+char db_createGroupTable[] = "CREATE TABLE IF NOT EXISTS `umc_group_weight` ( \
 	`GroupName` VARCHAR(256) NOT NULL, \
 	`Weight` INT NOT NULL, \
 	PRIMARY KEY (`GroupName`) \
@@ -170,7 +170,7 @@ Database connectToDatabase()
 		LogError("Could not connect to database: %s", error);
 	}
 
-	if(!db_createTableSuccess && !SQL_FastQuery(db, db_createTable))
+	if(!db_createTableSuccess && !SQL_FastQuery(db, db_createMapTable) && !SQL_FastQuery(db, db_createGroupTable))
 	{
 		SQL_GetError(db, error, sizeof(error));
 		LogError("Could not query to database: %s", error);
