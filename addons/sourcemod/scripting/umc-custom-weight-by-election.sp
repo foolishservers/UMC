@@ -168,12 +168,26 @@ Database connectToDatabase()
 	if(db == null)
 	{
 		LogError("Could not connect to database: %s", error);
+
+		return db;
 	}
 
-	if(!db_createTableSuccess && !SQL_FastQuery(db, db_createMapTable) && !SQL_FastQuery(db, db_createGroupTable))
+	if(!SQL_FastQuery(db, "SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'"))
 	{
 		SQL_GetError(db, error, sizeof(error));
 		LogError("Could not query to database: %s", error);
+
+		delete db;
+		return null;
+	}
+
+	if(!db_createTableSuccess && (!SQL_FastQuery(db, db_createMapTable) || !SQL_FastQuery(db, db_createGroupTable)))
+	{
+		SQL_GetError(db, error, sizeof(error));
+		LogError("Could not query to database: %s", error);
+
+		delete db;
+		return null;
 	}
 
 	db_createTableSuccess = true;
