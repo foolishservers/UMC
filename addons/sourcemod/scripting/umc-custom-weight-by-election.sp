@@ -32,7 +32,7 @@ ConVar g_cvarPointMultiplier = null;
 ConVar g_cvarPointExponent = null;
 int g_iPointAdditionAmount = 1;
 float g_fPointMultiplierAmount = 1.0;
-float g_fPointExponentAmount = 2.0;
+float g_fPointExponentAmount = 1.0;
 
 public Plugin myinfo =
 {
