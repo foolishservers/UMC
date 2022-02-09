@@ -116,7 +116,7 @@ public int UMC_OnReweightGroup(Handle kv, const char[] group)
 	return 0;
 }
 
-public void OnMapStart()
+public int UMC_OnNextmapSet(Handle kv, const char[] map, const char[] group, const char[] display)
 {
 	Database db = connectToDatabase();
 	if(db == null)
@@ -124,12 +124,6 @@ public void OnMapStart()
 		return;
 	}
 
-	char map[PLATFORM_MAX_PATH];
-	GetCurrentMap(map, sizeof(map));
-
-	char group[PLATFORM_MAX_PATH];
-	UMC_GetCurrentMapGroup(group, sizeof(group));
-	
 	int escapedMapLength = strlen(map) * 2 + 1;
 	char[] escapedMap = new char[escapedMapLength];
 	db.Escape(map, escapedMap, escapedMapLength);
