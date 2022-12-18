@@ -700,7 +700,8 @@ public Native_UMCVoteManagerComplete(Handle:plugin, numParams)
 
     new Handle:response = ProcessVoteResults(vM, voteOptions);
 
-    new UMC_VoteResponseHandler:handler = UMC_VoteResponseHandler:GetNativeFunction(3);
+    //UMC_VoteResponseHandler handler = view_as<UMC_VoteResponseHandler>(GetNativeFunction(3));
+    Function handler = GetNativeFunction(3);
 
     new UMC_VoteResponse:result;
     new String:param[MAP_LENGTH];
@@ -2104,7 +2105,7 @@ UMC_BuildOptionsError:BuildMapVoteItems(Handle:voteManager, Handle:result, Handl
             }
         }
         // Otherwise, we fill the vote with nominations then fill the rest with random maps from the mapcycle.
-        else
+        /*else
         {
             //Add nomination to the vote array for each index in the nomination array.
             for (new i = 0; i < numNoms; i++)
@@ -2155,7 +2156,7 @@ UMC_BuildOptionsError:BuildMapVoteItems(Handle:voteManager, Handle:result, Handl
                     }
                 }
             }
-        }
+        }*/
         
         //////
         //At this point in the algorithm, we have already handled nominations for this category.
