@@ -44,6 +44,7 @@ new Handle:cvar_mem_group       = INVALID_HANDLE;
 new Handle:cvar_sort            = INVALID_HANDLE;
 new Handle:cvar_flags           = INVALID_HANDLE;
 new Handle:cvar_nominate_time   = INVALID_HANDLE;
+new Handle:cvar_nominate_weight = INVALID_HANDLE;
 ////----/CONVARS-----/////
 
 //Mapcycle
@@ -63,6 +64,12 @@ new bool:vote_completed;
 
 //Can we nominate?
 new bool:can_nominate;
+
+bool db_createTableSuccess = false;
+
+char db_createTable[] = "CREATE TABLE IF NOT EXISTS `umc_weight` (`map` VARCHAR(256) PRIMARY KEY, `weight` INT NOT NULL);";
+char db_insertRow[] = "INSERT IGNORE INTO `umc_weight` (`map`, `weight`) VALUES ('%s', 0);";
+char db_selectRow[] = "SELECT `weight` FROM `umc_weight` WHERE `map` = '%s' LIMIT 1;";
 
 //TODO: Add cvar for enable/disable exclusion from prev. maps.
 //      Possible bug: nomination menu doesn't want to display twice for a client in a map.
@@ -128,6 +135,13 @@ public OnPluginStart()
         "20",
         "Specifies how long the nomination menu should remain open for. Minimum is 10 seconds!",
         0, true, 10.0
+    );
+    
+    cvar_nominate_weight = CreateConVar(
+        "sm_umc_nominate_minweight",
+        "-1",
+        "How much weight needed to appear in nominated list?",
+        0, true, -1.0
     );
     
     //Create the config if it doesn't exist, and then execute it.
@@ -553,6 +567,9 @@ Handle:BuildNominationMenu(client, const String:cat[]=INVALID_GROUP)
             }
         }
         
+        int weight = GetConVarInt(cvar_nominate_weight);
+        if(weight >= 0 && GetMapWeight_Custom(mapBuff) < weight) continue;
+        
         //Get the name of the current map.
         KvGetSectionName(map_kv, mapBuff, sizeof(mapBuff));
         
@@ -797,4 +814,90 @@ public UMC_DisplayMapCycle(client, bool:filtered)
     {
         PrintKvToConsole(umc_mapcycle, client);
     }
+}
+
+stock int GetMapWeight_Custom(const char[] map)
+{
+	Database db = connect2DB();
+	if(db == null)
+	{
+		return 0;
+	}
+
+	int point = 0;
+
+	char error[255];
+
+	int escapedMapNameLength = strlen(map) * 2 + 1;
+	char[] escapedMapName = new char[escapedMapNameLength];
+	db.Escape(map, escapedMapName, escapedMapNameLength);
+
+	{
+		int queryStatementLength = sizeof(db_insertRow) + strlen(escapedMapName);
+		char[] queryStatement = new char[queryStatementLength];
+		Format(queryStatement, queryStatementLength, db_insertRow, escapedMapName);
+
+		if(!SQL_FastQuery(db, queryStatement))
+		{
+			SQL_GetError(db, error, sizeof(error));
+			LogError("Could not query to database: %s", error);
+
+			return 0;
+		}
+	}
+
+	{
+		DBResultSet hQuery;
+
+		int queryStatementLength = sizeof(db_selectRow) + strlen(escapedMapName);
+		char[] queryStatement = new char[queryStatementLength];
+		Format(queryStatement, queryStatementLength, db_selectRow, escapedMapName);
+
+		if((hQuery = SQL_Query(db, queryStatement)) == null)
+		{
+			SQL_GetError(db, error, sizeof(error));
+			LogError("Could not query to database: %s", error);
+
+			return 0;
+		}
+
+		if(SQL_FetchRow(hQuery))
+		{
+			point = SQL_FetchInt(hQuery, 0);
+		}
+
+		delete hQuery;
+	}
+	
+	return point;
+}
+
+Database connect2DB()
+{
+	char error[255];
+	Database db;
+	
+	if(SQL_CheckConfig("umc_weight"))
+	{
+		db = SQL_Connect("umc_weight", true, error, sizeof(error));
+	}
+	else
+	{
+		db = SQL_Connect("default", true, error, sizeof(error));
+	}
+	
+	if(db == null)
+	{
+		LogError("Could not connect to database: %s", error);
+	}
+
+	if(!db_createTableSuccess && !SQL_FastQuery(db, db_createTable))
+	{
+		SQL_GetError(db, error, sizeof(error));
+		LogError("Could not query to database: %s", error);
+	}
+
+	db_createTableSuccess = true;
+	
+	return db;
 }
