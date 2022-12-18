@@ -284,12 +284,17 @@ public Action:OnPlayerChat(client, const String:command[], argc)
                     KvGoBack(map_kv);
 
                     new clientFlags = GetUserFlagBits(client);
+                    int weight = GetConVarInt(cvar_nominate_weight);
                     
                     //Check if admin flag set
                     if (adminFlags[0] != '\0' && !(clientFlags & ReadFlagString(adminFlags)))
                     {
                         //TODO: Change to translation phrase
                         PrintToChat(client, "[UMC] Could not find map \"%s\"", arg);
+                    }
+                    else if(weight >= 0 && GetMapWeight_Custom(arg) < weight)
+                    {
+        				PrintToChat(client, "[UMC] Weight for map \"%s\" is not enough.", arg);
                     }
                     else
                     {
