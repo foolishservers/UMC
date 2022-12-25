@@ -1895,7 +1895,7 @@ UMC_BuildOptionsError:BuildMapVoteItems(Handle:voteManager, Handle:result, Handl
     //Filter mapcycle
     if (exclude)
     {
-        FilterMapcycle(kv, mapcycle, .deleteEmpty=false);
+        FilterMapcycle(kv, mapcycle, .deleteEmpty=true);
     }
     
     //Log an error and return nothing if it cannot find a category.
@@ -2105,7 +2105,7 @@ UMC_BuildOptionsError:BuildMapVoteItems(Handle:voteManager, Handle:result, Handl
             }
         }
         // Otherwise, we fill the vote with nominations then fill the rest with random maps from the mapcycle.
-        /*else
+        else
         {
             //Add nomination to the vote array for each index in the nomination array.
             for (new i = 0; i < numNoms; i++)
@@ -2156,7 +2156,7 @@ UMC_BuildOptionsError:BuildMapVoteItems(Handle:voteManager, Handle:result, Handl
                     }
                 }
             }
-        }*/
+        }
         
         //////
         //At this point in the algorithm, we have already handled nominations for this category.
