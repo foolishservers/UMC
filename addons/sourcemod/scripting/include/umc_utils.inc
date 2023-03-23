@@ -94,6 +94,8 @@ stock Handle:CreateMapTrie(const String:map[], const String:group[])
 stock Handle:GetKvFromFile(const String:filename[], const String:rootKey[], bool:checkNorm=true)
 {
     new Handle:kv = CreateKeyValues(rootKey);
+
+    KvSetEscapeSequences(kv, true);
     
     //Log an error and return empty handle if the kv file fails to parse.
     if (!(checkNorm && ConvertNormalMapcycle(kv, filename)) && !FileToKeyValues(kv, filename))

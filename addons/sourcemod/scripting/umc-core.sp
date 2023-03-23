@@ -1844,15 +1844,15 @@ Handle:BuildVoteItems(Handle:vM, Handle:kv, Handle:mapcycle, &UMC_VoteType:type,
 
     switch (type)
     {
-        case (VoteType_Map):
+        case VoteType_Map:
         {
             error = BuildMapVoteItems(vM, result, kv, mapcycle, scramble, extend, dontChange, allowDupes, strictNoms, .exclude=exclude);
         }
-        case (VoteType_Group):
+        case VoteType_Group:
         {
             error = BuildCatVoteItems(vM, result, kv, mapcycle, scramble, extend, dontChange, strictNoms, exclude);
         }
-        case (VoteType_Tier):
+        case VoteType_Tier:
         {
             error = BuildCatVoteItems(vM, result, kv, mapcycle, scramble, extend, dontChange, strictNoms, exclude);
         }
