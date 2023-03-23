@@ -263,7 +263,7 @@ native bool:UMC_IsMapNominated(const String:map[], const String:group[]);
  * @return True on success, false otherwise.
  */
 native bool:UMC_NominateMap(Handle:mapcycle, const String:map[], const String:group[], client, 
-                            const String:nominationGroup[]=INVALID_HANDLE);
+                            const String:nominationGroup[]=INVALID_GROUP);
  
 
 /**
@@ -419,7 +419,7 @@ native bool:UMC_StopVote(const String:id[]);
  *
  * @return Plugin_Continue on success, Plugin_Stop to prevent the vote.
  */
-typedef UMC_VoteHandler = function Action (int duration, Handle vote_items, const int clients[], int numClients, const char startSound[]);
+typedef UMC_VoteHandler = function Action (int duration, Handle vote_items, const int[] clients, int numClients, const char[] startSound);
 
 /**
  *
@@ -447,7 +447,7 @@ native UMC_RegisterVoteManager(const String:id[], UMC_VoteHandler:mapCallback,
 /**
  *
  */
-typedef UMC_VoteResponseHandler = function void(UMC_VoteResponse response, const char param[]);
+typedef UMC_VoteResponseHandler = function void(UMC_VoteResponse response, const char[] param);
 
 /**
  * Notifies UMC that the current vote has completed.

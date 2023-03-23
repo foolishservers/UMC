@@ -475,11 +475,13 @@ stock CacheSound(const String:sound[])
             //Cache it.
             PrecacheSoundAny(sound, true);
             
+            /*
             //Log an error if the sound failed to be cached.
             if (!IsSoundPrecached(filePath))
             {    
                 LogError("SOUND ERROR: Failed to precache sound file '%s'", sound);
             }
+            */
         }
     }
 }
@@ -1318,6 +1320,9 @@ stock ArrayMin(const arr[], maxlen, &idx=0)
             minIdx = i;
         }
     }
+
+    idx = minIdx;
+
     return min;
 }
 
@@ -1341,5 +1346,8 @@ stock ArrayMax(const arr[], maxlen, &idx=0)
             maxIdx = i;
         }
     }
+
+    idx = maxIdx;
+
     return max;
 }
