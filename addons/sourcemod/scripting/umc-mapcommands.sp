@@ -23,7 +23,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 #include <umc-core>
 #include <umc_utils>
 
-public Plugin:myinfo =
+public Plugin myinfo =
 {
     name = "[UMC] Map Commands",
     author = "Previous:Steell,Powerlord - Current: Mr.Silence",
@@ -32,21 +32,23 @@ public Plugin:myinfo =
     url = "http://forums.alliedmods.net/showthread.php?t=134190"
 }
 
+#define MAX_COMMAND_LENGTH (1024)
+
 #define COMMAND_KEY          "command"
 #define PRE_COMMAND_KEY      "pre-command"
 #define POSTVOTE_COMMAND_KEY "postvote-command"
 
-new String:map_command[256];
-new String:group_command[256];
-new String:map_precommand[256];
-new String:group_precommand[256];
+char map_command[MAX_COMMAND_LENGTH];
+char group_command[MAX_COMMAND_LENGTH];
+char map_precommand[MAX_COMMAND_LENGTH];
+char group_precommand[MAX_COMMAND_LENGTH];
 
 //Execute commands after all configs have been executed.
 public OnConfigsExecuted()
 {
     if (strlen(group_command) == 0 || strlen(map_command) == 0)
     {
-        new Handle:kv = GetKvFromFile("umc_mapcycle.txt", "umc_mapcycle");
+        KeyValues kv = GetKvFromFile("umc_mapcycle.txt", "umc_mapcycle");
         decl String:CurrentMapGroup[64], String:CurrentMap[64];
         
         GetCurrentMap(CurrentMap, sizeof(CurrentMap));
@@ -109,7 +111,7 @@ public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], con
         return;
     }
     
-    decl String:gPVCommand[256], String:mPVCommand[256];
+    decl String:gPVCommand[MAX_COMMAND_LENGTH], String:mPVCommand[MAX_COMMAND_LENGTH];
 
     KvRewind(kv); //TODO: Remove
     if (KvJumpToKey(kv, group))
