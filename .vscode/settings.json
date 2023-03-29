@@ -1,0 +1,5 @@
+{
+    "sourcepawn.optionalIncludeDirsPaths": [
+        "addons\\sourcemod\\scripting\\include"
+    ]
+}

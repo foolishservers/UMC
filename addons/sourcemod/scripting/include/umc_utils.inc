@@ -29,16 +29,18 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 #include <regex>
 #include <emitsoundany>
 
+#pragma newdecls required
+
 //************************************************************************************************//
 //                                        GENERAL UTILITIES                                       //
 //************************************************************************************************//
 
 #if UMC_DEBUG
 //Prints a debug message.
-stock DebugMessage(const String:message[], any:...)
+stock void DebugMessage(const char[] message, any ...)
 {
-    new size = strlen(message) + 255;
-    decl String:fMessage[size];
+    int size = strlen(message) + 255;
+    char[] fMessage = new char[size];
     VFormat(fMessage, size, message, 2);
     
     LogUMCMessage("DEBUG: %s", fMessage);
@@ -55,14 +57,14 @@ stock DebugMessage(const String:message[], any:...)
 #define MIN(%0, %1) ((%0) < (%1)) ? (%0) : (%1)
 
 
-stock LogUMCMessage(const String:message[], any:...)
+stock void LogUMCMessage(const char[] message, any ...)
 {
-    new size = strlen(message) + 255;
-    decl String:fMessage[size];
+    int size = strlen(message) + 255;
+    char[] fMessage = new char[size];
     VFormat(fMessage, size, message, 2);
     
-    decl String:fileName[PLATFORM_MAX_PATH];
-    decl String:timeStamp[64];
+    char fileName[PLATFORM_MAX_PATH];
+    char timeStamp[64];
     FormatTime(timeStamp, sizeof(timeStamp), "%Y%m%d", GetTime());
     BuildPath(Path_SM, fileName, sizeof(fileName), "logs/UMC_%s.log", timeStamp);
     
@@ -70,10 +72,10 @@ stock LogUMCMessage(const String:message[], any:...)
 }
 
 
-stock StringToUpper(String:str[])
+stock void StringToUpper(char []str)
 {
-    new i = 0;
-    while (str[i] != 0)
+    int i = 0;
+    while(str[i] != '\0')
     {
         str[i] = CharToUpper(str[i]);
     }
@@ -81,28 +83,28 @@ stock StringToUpper(String:str[])
 
 
 //Utility function to build a map trie.
-stock Handle:CreateMapTrie(const String:map[], const String:group[])
+stock StringMap CreateMapTrie(const char[] map, const char[] group)
 {
-    new Handle:trie = CreateTrie();
-    SetTrieString(trie, MAP_TRIE_MAP_KEY, map);
-    SetTrieString(trie, MAP_TRIE_GROUP_KEY, group);
+    StringMap trie = new StringMap();
+    trie.SetString(MAP_TRIE_MAP_KEY, map);
+    trie.SetString(MAP_TRIE_GROUP_KEY, group);
     return trie;
 }
 
 
 //Utility function to get a KeyValues Handle from a filename, with the specified root key.
-stock Handle:GetKvFromFile(const String:filename[], const String:rootKey[], bool:checkNorm=true)
+stock KeyValues GetKvFromFile(const char[] filename, const char[] rootKey, bool checkNorm = true)
 {
-    new Handle:kv = CreateKeyValues(rootKey);
+    KeyValues kv = new KeyValues(rootKey);
 
-    KvSetEscapeSequences(kv, true);
+    kv.SetEscapeSequences(true);
     
     //Log an error and return empty handle if the kv file fails to parse.
-    if (!(checkNorm && ConvertNormalMapcycle(kv, filename)) && !FileToKeyValues(kv, filename))
+    if (!(checkNorm && ConvertNormalMapcycle(kv, filename)) && !kv.ImportFromFile(filename))
     {
         LogError("KV ERROR: Unable to load KV file: %s", filename);
-        CloseHandle(kv);
-        return INVALID_HANDLE;
+        delete kv;
+        return null;
     }
     
 #if UMC_DEBUG
@@ -113,19 +115,19 @@ stock Handle:GetKvFromFile(const String:filename[], const String:rootKey[], bool
 }
 
 
-stock bool:ConvertNormalMapcycle(Handle:kv, const String:filename[])
+stock bool ConvertNormalMapcycle(KeyValues kv, const char[] filename)
 {
     //DEBUG_MESSAGE("Opening Mapcycle File %s", filename)
-    new Handle:file = OpenFile(filename, "r");
+    File file = OpenFile(filename, "r");
     
-    if (file == INVALID_HANDLE)
+    if (file == null)
     {    
         return false;
     }
     
     //DEBUG_MESSAGE("Fetching first line.")
-    new String:firstLine[256];
-    new bool:foundDef;
+    char firstLine[256];
+    bool foundDef = false;
     while (ReadFileLine(file, firstLine, sizeof(firstLine)))
     {
         TrimString(firstLine);
@@ -139,18 +141,18 @@ stock bool:ConvertNormalMapcycle(Handle:kv, const String:filename[])
     if (!foundDef)
     {
         //DEBUG_MESSAGE("Couldn't find first line")
-        CloseHandle(file);
+        delete file;
         return false;
     }
     
     //DEBUG_MESSAGE("Checking first line for UMC header: \"%s\"", firstLine)
-    static Handle:re = INVALID_HANDLE;
-    if (re == INVALID_HANDLE)
+    static Regex re = null;
+    if (re == null)
     {
-        re = CompileRegex("^//!UMC\\s+([0-9]+)\\s*$");
+        re = new Regex("^//!UMC\\s+([0-9]+)\\s*$");
     }
     
-    decl String:buffer[5];
+    char buffer[5];
     
     if (MatchRegex(re, firstLine) > 1)
     {
@@ -159,24 +161,24 @@ stock bool:ConvertNormalMapcycle(Handle:kv, const String:filename[])
     else
     {
         //DEBUG_MESSAGE("Header was not found. Aborting.")
-        CloseHandle(file);
+        delete file;
         return false;
     }
     
     //DEBUG_MESSAGE("Making a map group.")
-    static Handle:re2 = INVALID_HANDLE;
-    if (re2 == INVALID_HANDLE)
+    static Regex re2 = null;
+    if (re2 == null)
     {
-        re2 = CompileRegex("^\\s*([^/\\\\:*?'\"<>|\\s]+)\\s*(?://.*)?$");
+        re2 = new Regex("^\\s*([^/\\\\:*?'\"<>|\\s]+)\\s*(?://.*)?$");
     }
-    
+
     KvJumpToKey(kv, "Mapcycle", true);
     KvSetNum(kv, "maps_invote", StringToInt(buffer));
     
     //DEBUG_MESSAGE("Parsing maps.")
     
-    decl String:map[MAP_LENGTH];
-    decl String:line[256];
+    char map[MAP_LENGTH];
+    char line[256];
     while (ReadFileLine(file, line, sizeof(line)))
     {
         TrimString(line);
@@ -197,13 +199,13 @@ stock bool:ConvertNormalMapcycle(Handle:kv, const String:filename[])
 
 //Utility function to jump to a specific map in a mapcycle.
 //  kv: Mapcycle Keyvalues that must be at the root value.
-stock bool:KvJumpToMap(Handle:kv, const String:map[])
+stock bool KvJumpToMap(KeyValues kv, const char[] map)
 {
     if (!KvGotoFirstSubKey(kv))
     {
         return false;
     }    
-    decl String:mapName[MAP_LENGTH];
+    char mapName[MAP_LENGTH];
     
     do
     {
@@ -236,14 +238,14 @@ stock bool:KvJumpToMap(Handle:kv, const String:map[])
 //  map: Map whose group we're looking for.
 //  buffer: Buffer to store the found group name.
 //  maxlen: Maximum length of the buffer.
-stock bool:KvFindGroupOfMap(Handle:kv, const String:map[], String:buffer[], maxlen)
+stock bool KvFindGroupOfMap(KeyValues kv, const char[] map, char[] buffer, int maxlen)
 {
     if (!KvGotoFirstSubKey(kv))
     {
         return false;
     }
     
-    decl String:mapName[MAP_LENGTH], String:groupName[MAP_LENGTH];
+    char mapName[MAP_LENGTH], groupName[MAP_LENGTH];
     do
     {
         KvGetSectionName(kv, groupName, sizeof(groupName));
@@ -283,24 +285,24 @@ enum CustomHudFallbackType
 };
 
 //Color Arrays for colors in warning messages.
-static g_iSColors[7]             = {1, 3, 3, 4, 4, 5, 6};
-static String:g_sSColors[7][13]  = {"{DEFAULT}", "{LIGHTGREEN}", "{TEAM}", "{GREEN}", "{RED}",
+static int g_iSColors[7]             = {1, 3, 3, 4, 4, 5, 6};
+static char g_sSColors[7][13]  = {"{DEFAULT}", "{LIGHTGREEN}", "{TEAM}", "{GREEN}", "{RED}",
                                     "{DARKGREEN}", "{YELLOW}"};
-static g_iTColors[13][3]         = {{255, 255, 255}, {255,   0,   0}, {  0, 255,   0}, 
+static int g_iTColors[13][3]         = {{255, 255, 255}, {255,   0,   0}, {  0, 255,   0}, 
                                     {  0,   0, 255}, {255, 255,   0}, {255,   0, 255},
                                     {  0, 255, 255}, {255, 128,   0}, {255,   0, 128},
                                     {128, 255,   0}, {  0, 255, 128}, {128,   0, 255}, 
                                     {  0, 128, 255}};
-static String:g_sTColors[13][12] = {"{WHITE}", "{RED}", "{GREEN}", "{BLUE}", "{YELLOW}", "{PURPLE}",
+static char g_sTColors[13][12] = {"{WHITE}", "{RED}", "{GREEN}", "{BLUE}", "{YELLOW}", "{PURPLE}",
                                     "{CYAN}", "{ORANGE}", "{PINK}", "{OLIVE}", "{LIME}", "{VIOLET}",    
                                     "{LIGHTBLUE}"};
 
 //Handle to the Center Message timer. For Vote Warnings.
-static Handle:center_message_timer = INVALID_HANDLE;
-static bool:center_warning_active = false;
+static Handle center_message_timer = null;
+static bool center_warning_active = false;
 
 //Displays a message to the server
-stock DisplayServerMessage(const String:msg[], const String:type[])
+stock void DisplayServerMessage(const char[] msg, const char[] type)
 {
     if (center_warning_active)
     {   
@@ -312,15 +314,15 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
     {    
         return;
     }
-    decl String:message[255];
+    char message[255];
     strcopy(message, sizeof(message), msg);
     
     //Display a chat message ("S") if the user specifies.
     if (StrContains(type, "S") != -1)
     {
-        new String:sColor[4];
+        char sColor[4];
         Format(message, sizeof(message), "%c%s", 1, message);
-        for (new c = 0; c < sizeof(g_iSColors); c++)
+        for (int c = 0; c < sizeof(g_iSColors); c++)
         {
             if (StrContains(message, g_sSColors[c]))
             {
@@ -332,16 +334,16 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
     }
     
     //Buffer to hold message in order to manipulate it.
-    decl String:sTextTmp[255];
+    char sTextTmp[255];
     
     //Display a top message ("T") if the user specifies.
     if (StrContains(type, "T") != -1)
     {
         strcopy(sTextTmp, sizeof(sTextTmp), message);
-        decl String:sColor[16];
-        new iColor = -1, iPos = BreakString(sTextTmp, sColor, sizeof(sColor));
+        char sColor[16];
+        int iColor = -1, iPos = BreakString(sTextTmp, sColor, sizeof(sColor));
         
-        for (new i = 0; i < sizeof(g_sTColors); i++)
+        for (int i = 0; i < sizeof(g_sTColors); i++)
         {
             if (StrEqual(sColor, g_sTColors[i]))
             {    
@@ -355,24 +357,25 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
             iColor = 0;
         }
         
-        new Handle:hKv = CreateKeyValues("Stuff", "title", sTextTmp[iPos]);
-        KvSetColor(hKv, "color", g_iTColors[iColor][0], g_iTColors[iColor][1], g_iTColors[iColor][2], 255);
-        KvSetNum(hKv, "level", 1);
-        KvSetNum(hKv, "time",  10);
-        
-        for (new i = 1; i <= MaxClients; i++)
+        KeyValues hKv = CreateKeyValues("Stuff", "title", sTextTmp[iPos]);
+        hKv.SetColor("color", g_iTColors[iColor][0], g_iTColors[iColor][1], g_iTColors[iColor][2], 255);
+        hKv.SetNum("level", 1);
+        hKv.SetNum("time", 10);
+
+        for (int i = 1; i <= MaxClients; i++)
         {
             if (IsClientInGame(i) && !IsFakeClient(i))
             {    
                 CreateDialog(i, hKv, DialogType_Msg);
             }
         }
-        CloseHandle(hKv);
+
+        delete hKv;
     }
     
     // Remove colors, because C,H,M methods do not support colors.
     //Remove a color from the message string for each color in the Say color array.
-    for (new c = 0; c < sizeof(g_iSColors); c++)
+    for (int c = 0; c < sizeof(g_iSColors); c++)
     {
         if (StrContains(message, g_sSColors[c]) != -1)
         {    
@@ -381,7 +384,7 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
     }
     
     //Remove a color from the message string for each color in the Top color array.
-    for (new c = 0; c < sizeof(g_iTColors); c++)
+    for (int c = 0; c < sizeof(g_iTColors); c++)
     {
         if (StrContains(message, g_sTColors[c]) != -1)
         {    
@@ -395,14 +398,14 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
         PrintCenterTextAll(message);
         
         //Setup timer to keep the center message visible.
-        new Handle:hCenterAd;
+        DataPack hCenterAd;
         center_message_timer = CreateDataTimer(1.0, Timer_CenterAd, hCenterAd, TIMER_REPEAT);
-        WritePackString(hCenterAd, message);
+        hCenterAd.WriteString(message);
         
-        center_warning_active = center_message_timer != INVALID_HANDLE;
+        center_warning_active = center_message_timer != null;
         if (!center_warning_active)
         {    
-            CloseHandle(hCenterAd);
+            delete hCenterAd;
         }
     }
     
@@ -416,13 +419,13 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
 
 //Called with each tick of the timer for center messages. Used to keep the message visible for an
 //extended period.
-public Action:Timer_CenterAd(Handle:timer, Handle:pack)
+public Action Timer_CenterAd(Handle timer, DataPack pack)
 {
-    decl String:sText[256];
-    static iCount = 0;
+    char sText[256];
+    static int iCount = 0;
     
-    ResetPack(pack);
-    ReadPackString(pack, sText, sizeof(sText));
+    pack.Reset();
+    pack.ReadString(sText, sizeof(sText));
     
     if (center_warning_active && ++iCount < 5)
     {
@@ -432,7 +435,7 @@ public Action:Timer_CenterAd(Handle:timer, Handle:pack)
     else
     {
         iCount = 0;
-        center_message_timer = INVALID_HANDLE;
+        center_message_timer = null;
         center_warning_active = false;
         return Plugin_Stop;
     }
@@ -440,9 +443,9 @@ public Action:Timer_CenterAd(Handle:timer, Handle:pack)
 
 
 //Sets all elements of an array of booleans to false.
-stock ResetArray(bool:arr[], size)
+stock void ResetArray(bool[] arr, int size)
 {
-    for (new i = 0; i < size; i++)
+    for (int i = 0; i < size; i++)
     {    
         arr[i] = false;
     }
@@ -450,13 +453,13 @@ stock ResetArray(bool:arr[], size)
 
 
 //Utility function to cache a sound.
-stock CacheSound(const String:sound[])
+stock void CacheSound(const char[] sound)
 {
     //Handle the sound if it is defined.
     if (strlen(sound) > 0)
     {
         //Filepath buffer
-        decl String:filePath[PLATFORM_MAX_PATH];
+        char filePath[PLATFORM_MAX_PATH];
     
         //Format sound to the correct directory.
         FormatEx(filePath, sizeof(filePath), "sound/%s", sound);
@@ -490,50 +493,49 @@ stock CacheSound(const String:sound[])
 //Fetch the next index of the menu.
 //    size: the size of the menu
 //    scramble: whether or not a random index should be picked.
-stock GetNextMenuIndex(size, bool:scramble)
+stock int GetNextMenuIndex(int size, bool scramble)
 {
     return scramble ? GetRandomInt(0, size) : size;
 }
 
 
 //Inserts given string into given array at given index.
-stock InsertArrayString(Handle:arr, index, const String:value[])
+stock void InsertArrayString(ArrayList arr, int index, const char[] value)
 {
-    if (GetArraySize(arr) > index)
+    if (arr.Length > index)
     {
-        ShiftArrayUp(arr, index);
-        SetArrayString(arr, index, value);
+        arr.ShiftUp(index);
+        arr.SetString(index, value);
     }
     else
-    {    
-        PushArrayString(arr, value);
+    {
+        arr.PushString(value);
     }
 }
 
 
 //Inserts given cell into given adt_array at given index,
-stock InsertArrayCell(Handle:arr, index, any:cell)
+stock void InsertArrayCell(ArrayList arr, int index, any cell)
 {
-    if (GetArraySize(arr) > index)
+    if (arr.Length > index)
     {
-        ShiftArrayUp(arr, index);
-        SetArrayCell(arr, index, cell);
+        arr.ShiftUp(index);
+        arr.Set(index, cell);
     }
     else
     {
-        PushArrayCell(arr, cell);
+        arr.Push(cell);
     }
 }
 
 
 //Deletes values off the end of an array until it is down to the given size.
-stock TrimArray(Handle:arr, size)
+stock void TrimArray(ArrayList arr, int size)
 {
     //Remove elements from the start of an array while the size of the array is greater than the required size.
-    new asize = GetArraySize(arr);
-    while (asize > size)
-    {    
-        RemoveFromArray(arr, --asize);
+    if (arr.Length > size)
+    {
+        arr.Resize(size);
     }
 }
 
@@ -542,10 +544,10 @@ stock TrimArray(Handle:arr, size)
 //    mapName: the name of the map
 //    arr:     the memory array we're adding to
 //    size:    the maximum size of the memory array
-stock AddToMemoryArray(const String:mapName[], Handle:arr, size)
+stock void AddToMemoryArray(const char[] mapName, ArrayList arr, int size)
 {
     //Add the new map to the beginning of the array.
-    InsertArrayString(arr, 0, mapName);
+    arr.SetString(0, mapName);
     
     //Trim the array down to size.
     TrimArray(arr, size);
@@ -553,30 +555,30 @@ stock AddToMemoryArray(const String:mapName[], Handle:arr, size)
 
 
 //Adds entire array to the given menu.
-stock AddArrayToMenu(Handle:menu, Handle:arr, Handle:dispArr=INVALID_HANDLE)
+stock void AddArrayToMenu(Menu menu, ArrayList arr, ArrayList dispArr = null)
 {
-    decl String:map[MAP_LENGTH], String:disp[MAP_LENGTH];
-    new arrSize = GetArraySize(arr);
-    new dispSize = (dispArr != INVALID_HANDLE) ? GetArraySize(dispArr) : 0;
-    for (new i = 0; i < arrSize; i++)
+    char map[MAP_LENGTH], disp[MAP_LENGTH];
+    int arrSize = arr.Length;
+    int dispSize = (dispArr != null) ? dispArr.Length : 0;
+    for (int i = 0; i < arrSize; i++)
     {
-        GetArrayString(arr, i, map, sizeof(map));
+        arr.GetString(i, map, sizeof(map));
         if (i >= dispSize)
         {
             disp = map;
         }
         else
         {
-            GetArrayString(dispArr, i, disp, sizeof(disp));
+            dispArr.GetString(i, disp, sizeof(disp));
         }
         
-        AddMenuItem(menu, map, disp);
+        menu.AddItem(map, disp);
     }
 }
 
 
 //Changes the map in 5 seconds.
-stock ForceChangeInFive(const String:map[], const String:reason[]="")
+stock void ForceChangeInFive(const char[] map, const char[] reason = "")
 {
     //Notify the server.
     PrintToChatAll("\x03[UMC]\x01 %t", "Map Change in 5");
@@ -587,46 +589,48 @@ stock ForceChangeInFive(const String:map[], const String:reason[]="")
 
 
 //Changes the map after the specified time period.
-stock ForceChangeMap(const String:map[], Float:time, const String:reason[]="")
+stock void ForceChangeMap(const char[] map, float time, const char[] reason = "")
 {
     LogUMCMessage("%s: Changing map to '%s' in %.f seconds.", reason, map, time);
 
     //Setup the timer.
-    new Handle:pack;
+    DataPack pack;
     CreateDataTimer(
         time,
         Handle_MapChangeTimer,
         pack,
         TIMER_FLAG_NO_MAPCHANGE
     );
-    WritePackString(pack, map);
-    WritePackString(pack, reason);
+    pack.WriteString(map);
+    pack.WriteString(reason);
 }
 
 
 //Called after the mapchange timer is completed.
-public Action:Handle_MapChangeTimer(Handle:timer, Handle:pack)
+public Action Handle_MapChangeTimer(Handle timer, DataPack pack)
 {
     //Get map from the timer's pack.
-    decl String:map[MAP_LENGTH], String:reason[255];
-    ResetPack(pack);
-    ReadPackString(pack, map, sizeof(map));
-    ReadPackString(pack, reason, sizeof(reason));
+    char map[MAP_LENGTH], reason[255];
+    pack.Reset();
+    pack.ReadString(map, sizeof(map));
+    pack.ReadString(reason, sizeof(reason));
     
     //DEBUG_MESSAGE("Changing map to %s: %s", map, reason)
     
     //Change the map.
     ForceChangeLevel(map, reason);
+
+    return Plugin_Continue;
 }
 
 
 //Determines if the current server time is between the given min and max.
-stock bool:IsTimeBetween(min, max)
+stock bool IsTimeBetween(int min, int max)
 {
     //Get the current server time.
-    decl String:time[5];
+    char time[5];
     FormatTime(time, sizeof(time), "%H%M");
-    new theTime = StringToInt(time);
+    int theTime = StringToInt(time);
     
     //Handle wrap-around case if...
     //  ...max time is less than min time.
@@ -643,41 +647,41 @@ stock bool:IsTimeBetween(min, max)
 
 
 //Determines if the current server player count is between the given min and max.
-stock bool:IsPlayerCountBetween(min, max)
+stock bool IsPlayerCountBetween(int min, int max)
 {
     //Get the current number of players.
-    new numplayers = GetRealClientCount();
+    int numplayers = GetRealClientCount();
     return min <= numplayers && numplayers <= max;
 }
 
 
 //Converts an adt_array to a standard array.
-stock ConvertAdtArray(Handle:arr, any:newArr[], size)
+stock void ConvertAdtArray(ArrayList arr, any[] newArr, int size)
 {
-    new arraySize = GetArraySize(arr);
-    new min = size < arraySize ? size : arraySize;
-    for (new i = 0; i < min; i++)
+    int arraySize = arr.Length;
+    int min = (size < arraySize) ? size : arraySize;
+    for (int i = 0; i < min; i++)
     {    
-        newArr[i] = GetArrayCell(arr, i);
+        newArr[i] = arr.Get(i);
     }
 }
 
 
-stock ConvertArray(const any:arr[], amt, Handle:newArr)
+stock void ConvertArray(const any[] arr, int amt, ArrayList newArr)
 {
-    for (new i = 0; i < amt; i++)
+    for (int i = 0; i < amt; i++)
     {
-        PushArrayCell(newArr, arr[i]);
+        newArr.Push(arr[i]);
     }
 }
 
 
 //Selects one random name from the given name array, using the weights in the supplies weight array.
 //Stores the result in buffer.
-stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Handle:nameArr, &index=0)
+stock bool GetWeightedRandomSubKey(char[] buffer, int size, ArrayList weightArr, ArrayList nameArr, int &index = 0)
 {
     //Calc total number of maps we're choosing.
-    new total = GetArraySize(weightArr);
+    int total = weightArr.Length;
     
     //DEBUG_MESSAGE("Getting number of items in the pool - %i", total)
     
@@ -686,7 +690,7 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
     {   
         //DEBUG_MESSAGE("Only 1 item in pool, setting it as the winner.")
         //WE HAVE A WINNER!
-        GetArrayString(nameArr, 0, buffer, size);
+        nameArr.GetString(0, buffer, size);
         return true;
     }
     //Otherwise, we immediately do nothing and return, if there are no maps to choose from.
@@ -699,39 +703,39 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
     //custom: shuffle array once more
     //bogo sort?
     int ord1, ord2;
-    for (new i = 0; i < total; i++)
+    for (int i = 0; i < total; i++)
     {
     	ord1 = GetRandomInt(0, total - 1);
     	do { ord2 = GetRandomInt(0, total - 1); } while(ord1 == ord2);
     	
-    	SwapArrayItems(weightArr, ord1, ord2);
-    	SwapArrayItems(nameArr, ord1, ord2);
+        weightArr.SwapAt(ord1, ord2);
+        nameArr.SwapAt(ord1, ord2);
     }
     
-    SortADTArrayCustom(weightArr, Sort_MapWeight, nameArr);
+    weightArr.SortCustom(Sort_MapWeight, nameArr);
 
     //DEBUG_MESSAGE("Setting up array of weights.")
     //Convert the adt_array of weights to a normal array.
-    new Float:weights[total];
+    float[] weights = new float[total];
     ConvertAdtArray(weightArr, weights, total);
 
     //DEBUG_MESSAGE("Picking a random number.")
     //We select a random number here by getting a random Float in the
     //range [0, 1), and then multiply it by the sum of the weights, to
     //make the effective range [0, totalweight).
-    new Float:rand = GetURandomFloat() * ArraySum(weights, total);
-    new Float:runningTotal = 0.0; //keeps track of total so far
+    float rand = GetURandomFloat() * ArraySum(weights, total);
+    float runningTotal = 0.0; //keeps track of total so far
     
     LogUMCMessage("--- MAP LIST ---");
-    for (new i = 0; i < total; i++)
+    for (int i = 0; i < total; i++)
     {
-    	GetArrayString(nameArr, i, buffer, size);
+        nameArr.GetString(i, buffer, size);
     	LogUMCMessage("\'%s\', Weight: %.2f", buffer, weights[i]);
     }
     
     //DEBUG_MESSAGE("Find the winner in the pool.")
     //Determine if a map is the winner for each map in the arrays.
-    for (new i = 0; i < total; i++)
+    for (int i = 0; i < total; i++)
     {
         //DEBUG_MESSAGE("Update running total of weights.")
         //add weight onto the total
@@ -742,7 +746,7 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
         if (runningTotal > rand)
         {
             //DEBUG_MESSAGE("Item found.")
-            GetArrayString(nameArr, i, buffer, size);
+            nameArr.GetString(i, buffer, size);
             index = i;
             return true;
         }
@@ -754,13 +758,9 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
     return false;
 }
 
-public int Sort_MapWeight(int index1, int index2, Handle weightArr, Handle nameArr)
+int Sort_MapWeight(int index1, int index2, ArrayList weightArr, ArrayList nameArr)
 {
-	static float fl1, fl2;
-	fl1 = GetArrayCell(weightArr, index1);
-	fl2 = GetArrayCell(weightArr, index2);
-	
-	if(fl1 < fl2)
+	if (weightArr.Get(index1) < weightArr.Get(index2))
 	{
 		SwapArrayItems(nameArr, index1, index2);
 		return 1;
@@ -770,10 +770,10 @@ public int Sort_MapWeight(int index1, int index2, Handle weightArr, Handle nameA
 }
 
 //Utility function to sum up an array of floats.
-stock Float:ArraySum(const Float:floats[], size)
+stock float ArraySum(const float[] floats, int size)
 {
-    new Float:result = 0.0;
-    for (new i = 0; i < size; i++)
+    float result = 0.0;
+    for (int i = 0; i < size; i++)
     {
         result += floats[i];
     }
@@ -782,22 +782,22 @@ stock Float:ArraySum(const Float:floats[], size)
 
 
 //Utility function to clear an array of Handles and close each Handle.
-stock ClearHandleArray(Handle:arr)
+stock void ClearHandleArray(ArrayList arr)
 {
-    new arraySize = GetArraySize(arr);
-    for (new i = 0; i < arraySize; i++)
+    int arraySize = arr.Length;
+    for (int i = 0; i < arraySize; i++)
     {
-        CloseHandle(GetArrayCell(arr, i));
+        CloseHandle(arr.Get(i));
     }
-    ClearArray(arr);
+    arr.Clear();
 }
 
 
 //Utility function to get the true count of active clients on the server.
-stock GetRealClientCount(bool:inGameOnly=true)
+stock int GetRealClientCount(bool inGameOnly = true)
 {
-    new clients = 0;
-    for (new i = 1; i <= MaxClients; i++)
+    int clients = 0;
+    for (int i = 1; i <= MaxClients; i++)
     {
         if ((inGameOnly ? IsClientInGame(i) : IsClientConnected(i)) && !IsFakeClient(i))
         {
@@ -809,27 +809,27 @@ stock GetRealClientCount(bool:inGameOnly=true)
 
 
 //Utiliy function to append arrays
-stock ArrayAppend(Handle:arr1, Handle:arr2)
+stock void ArrayAppend(ArrayList arr1, ArrayList arr2)
 {
-    new arraySize = GetArraySize(arr2);
-    for (new i = 0; i < arraySize; i++)
+    int arraySize = arr2.Length;
+    for (int i = 0; i < arraySize; i++)
     {
-        PushArrayCell(arr1, GetArrayCell(arr2, i));
+        arr1.Push(arr2.Get(i));
     }
 }
 
 
 //Builds an adt_array of numbers from 0 to max-1.
-stock Handle:BuildNumArray(max)
+stock ArrayList BuildNumArray(int max)
 {
-    new size = 2 + max / 10;
-    new Handle:result = CreateArray(ByteCountToCells(size));
-    decl String:buffer[size];
-    for (new i = 0; i < max; i++)
+    int size = 2 + max / 10;
+    ArrayList result = new ArrayList(ByteCountToCells(size));
+    char[] buffer = new char[size];
+    for (int i = 0; i < max; i++)
     {
         //IntToString(i, buffer, size);
         FormatEx(buffer, size, "%i", i);
-        PushArrayString(result, buffer);
+        result.PushString(buffer);
     }
     return result;
 }
@@ -837,7 +837,7 @@ stock Handle:BuildNumArray(max)
 
 //Determines the correct time to paginate a menu. Menu passed to this argument should have
 //pagination enabled.
-stock SetCorrectMenuPagination(Handle:menu, numSlots)
+stock void SetCorrectMenuPagination(Menu menu, int numSlots)
 {
     if (GetMenuStyleHandle(MenuStyle_Valve) != GetMenuStyleHandle(MenuStyle_Radio) && numSlots < 10)
     {
@@ -847,13 +847,13 @@ stock SetCorrectMenuPagination(Handle:menu, numSlots)
 
 
 //Finds a string in an array starting at a specific index.
-stock FindStringInArrayEx(Handle:arr, const String:value[], start=0)
+stock int FindStringInArrayEx(ArrayList arr, const char[] value, int start = 0)
 {
-    new size = GetArraySize(arr);
-    decl String:buffer[255];
-    for (new i = start; i < size; i++)
+    int size = arr.Length;
+    char buffer[255];
+    for (int i = start; i < size; i++)
     {
-        GetArrayString(arr, i, buffer, sizeof(buffer));
+        arr.GetString(i, buffer, sizeof(buffer));
         if (StrEqual(value, buffer))
         {
             return i;
@@ -863,41 +863,33 @@ stock FindStringInArrayEx(Handle:arr, const String:value[], start=0)
 }
 
 
-//Closes a handle and sets the variable pointer to INVALID_HANDLE
-stock CloseHandleEx(&Handle:handle)
-{
-    CloseHandle(handle);
-    handle = INVALID_HANDLE;
-}
-
-
 //Creates a copy of an adt_array.
-stock Handle:CopyStringArray(Handle:arr, blocksize=1)
+stock ArrayList CopyStringArray(ArrayList arr, int blocksize = 1)
 {
-    new size = GetArraySize(arr);
-    new Handle:result = CreateArray(blocksize);
-    new len = 4 * blocksize;
-    decl String:buffer[len];
-    for (new i = 0; i < size; i++)
+    int size = arr.Length;
+    ArrayList result = new ArrayList(blocksize);
+    int len = 4 * blocksize;
+    char[] buffer = new char[len];
+    for (int i = 0; i < size; i++)
     {
-        GetArrayString(arr, i, buffer, len);
-        PushArrayString(result, buffer);
+        arr.GetString(i, buffer, len);
+        result.PushString(buffer);
     }
     return result;
 }
 
 
 //Makes the timer to retry running a vote every second.
-stock MakeRetryVoteTimer(Function:callback)
+stock void MakeRetryVoteTimer(Function callback)
 {
-    new Handle:callbackForward = CreateForward(ET_Single);
-    AddToForward(callbackForward, INVALID_HANDLE, callback);
+    PrivateForward callbackForward = new PrivateForward(ET_Single);
+    callbackForward.AddFunction(null, callback);
     CreateTimer(1.0, Handle_RetryVoteTimer, callbackForward, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
 
 
 //Handles the retry timer for votes that were attempted to be started.
-public Action:Handle_RetryVoteTimer(Handle:timer, Handle:callback)
+Action Handle_RetryVoteTimer(Handle timer, PrivateForward callback)
 {
     if (!UMC_IsNewVoteAllowed())
     {
@@ -912,20 +904,20 @@ public Action:Handle_RetryVoteTimer(Handle:timer, Handle:callback)
 
 
 //Comparison function for map tries <Map, MapGroup>. Used for sorting.
-public CompareMapTries(index1, index2, Handle:array, Handle:hndl)
+int CompareMapTries(int index1, int index2, ArrayList array, Handle hndl)
 {
-    decl String:map1[MAP_LENGTH], String:map2[MAP_LENGTH],
-         String:group1[MAP_LENGTH], String:group2[MAP_LENGTH];
+    char map1[MAP_LENGTH], map2[MAP_LENGTH],
+         group1[MAP_LENGTH], group2[MAP_LENGTH];
     
-    new Handle:map = INVALID_HANDLE;
-    map = GetArrayCell(array, index1);
-    GetTrieString(map, MAP_TRIE_MAP_KEY, map1, sizeof(map1));
-    GetTrieString(map, MAP_TRIE_GROUP_KEY, group1, sizeof(group1));
-    map = GetArrayCell(array, index2);
-    GetTrieString(map, MAP_TRIE_MAP_KEY, map2, sizeof(map2));
-    GetTrieString(map, MAP_TRIE_GROUP_KEY, group2, sizeof(group2));
+    StringMap map = null;
+    map = array.Get(index1);
+    map.GetString(MAP_TRIE_MAP_KEY, map1, sizeof(map1));
+    map.GetString(MAP_TRIE_GROUP_KEY, group1, sizeof(group1));
+    map = array.Get(index2);
+    map.GetString(MAP_TRIE_MAP_KEY, map2, sizeof(map2));
+    map.GetString(MAP_TRIE_GROUP_KEY, group2, sizeof(group2));
     
-    new result = strcmp(map1, map2);
+    int result = strcmp(map1, map2);
     if (result == 0)
     {
         result = strcmp(group1, group2);
@@ -935,20 +927,20 @@ public CompareMapTries(index1, index2, Handle:array, Handle:hndl)
 
 
 //Sorts an array of map tries
-stock SortMapTrieArray(Handle:array)
+stock void SortMapTrieArray(ArrayList array)
 {
-    SortADTArrayCustom(array, CompareMapTries);
+    array.SortCustom(CompareMapTries);
 }
 
 
 //Prints the sections of a kv to the log.
-stock PrintKvToConsole(Handle:kv, client, depth=0)
+stock void PrintKvToConsole(KeyValues kv, int client, int depth = 0)
 {
-    decl String:section[64];
-    KvGetSectionName(kv, section, sizeof(section));
+    char section[64];
+    kv.GetSectionName(section, sizeof(section));
     
-    new whitespace = depth*2+1;
-    decl String:space[whitespace];
+    int whitespace = depth * 2 + 1;
+    char[] space = new char[whitespace];
     FillWhiteSpace(space, whitespace);
     
     PrintToConsole(client, "%s\"%s\"", space, section);
@@ -962,20 +954,20 @@ stock PrintKvToConsole(Handle:kv, client, depth=0)
     {
         PrintKvToConsole(kv, client, depth + 1);
     }
-    while (KvGotoNextKey(kv));
+    while (kv.GotoNextKey());
     
-    KvGoBack(kv);
+    kv.GoBack();
 }
 
 
 //Prints the sections of a kv to the log.
-stock LogKv(Handle:kv, depth=0)
+stock void LogKv(KeyValues kv, int depth = 0)
 {
-    decl String:section[64];
-    KvGetSectionName(kv, section, sizeof(section));
+    char section[64];
+    kv.GetSectionName(section, sizeof(section));
     
-    new whitespace = depth*2+1;
-    decl String:space[whitespace];
+    int whitespace = depth * 2 + 1;
+    char[] space = new char[whitespace];
     FillWhiteSpace(space, whitespace);
     
     //LogUMCMessage("%i: %s\"%s\"", depth+1, space, section);
@@ -984,51 +976,52 @@ stock LogKv(Handle:kv, depth=0)
     {
         return;
     }
+
     do
     {
         LogKv(kv, depth + 1);
     }
-    while (KvGotoNextKey(kv));
+    while (kv.GotoNextKey());
     
-    KvGoBack(kv);
+    kv.GoBack();
 }
 
 
 //Fills a string with whitespace.
-stock FillWhiteSpace(String:buffer[], maxlen)
+stock void FillWhiteSpace(char[] buffer, int maxlen)
 {
-    new limit = maxlen - 1;
-    for (new i = 0; i < limit; i++)
+    int limit = maxlen - 1;
+    for (int i = 0; i < limit; i++)
     {
         buffer[i] = ' ';
     }
-    buffer[limit] = 0;
+    buffer[limit] = '\0';
 }
 
 
-stock PrintNominationArray(Handle:array)
+stock void PrintNominationArray(ArrayList array)
 {
-    new Handle:nom;
-    decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
-    new size = GetArraySize(array);
-    for (new i = 0; i < size; i++)
+    StringMap nom;
+    char map[MAP_LENGTH], group[MAP_LENGTH];
+    int size = array.Length;
+    for (int i = 0; i < size; i++)
     {
-        nom = GetArrayCell(array, i);
-        GetTrieString(nom, MAP_TRIE_MAP_KEY, map, sizeof(map));
-        GetTrieString(nom, MAP_TRIE_GROUP_KEY, group, sizeof(group));
+        nom = array.Get(i);
+        nom.GetString(MAP_TRIE_MAP_KEY, map, sizeof(map));
+        nom.GetString(MAP_TRIE_GROUP_KEY, group, sizeof(group));
         //LogUMCMessage("%20s   |    %20s", map, group);
     }
 }
 
 
-stock bool:VoteMenuToAllWithFlags(Handle:menu, time, const String:flagstring[]="")
+stock bool VoteMenuToAllWithFlags(Menu menu, int time, const char[] flagstring = "")
 {
     if (strlen(flagstring) > 0)
     {
-        new flags = ReadFlagString(flagstring);
-        decl clients[MAXPLAYERS+1];
-        new count = 0;
-        for (new i = 1; i <= MaxClients; i++)
+        int flags = ReadFlagString(flagstring);
+        int clients[MAXPLAYERS + 1];
+        int count = 0;
+        for (int i = 1; i <= MaxClients; i++)
         {
             if (IsClientInGame(i) && (flags & GetUserFlagBits(i)))
             {
@@ -1039,18 +1032,18 @@ stock bool:VoteMenuToAllWithFlags(Handle:menu, time, const String:flagstring[]="
     }
     else
     {
-        return bool:VoteMenuToAll(menu, time);
+        return VoteMenuToAll(menu, time);
     }
 }
 
 
-stock GetClientsWithFlags(const String:flagstring[], clients[], maxlen, &amt)
+stock void GetClientsWithFlags(const char[] flagstring, int[] clients, int maxlen, int &amt)
 {
-    new bool:checkFlags = strlen(flagstring) > 0;
-    new flags = ReadFlagString(flagstring);
-    new limit = maxlen < MaxClients ? maxlen : MaxClients;
-    new count = 0;
-    for (new i = 1; i <= limit; i++)
+    bool checkFlags = strlen(flagstring) > 0;
+    int flags = ReadFlagString(flagstring);
+    int limit = (maxlen < MaxClients) ? maxlen : MaxClients;
+    int count = 0;
+    for (int i = 1; i <= limit; i++)
     {
         if (IsClientInGame(i) && !IsFakeClient(i) && (!checkFlags || (flags & GetUserFlagBits(i))))
         {
@@ -1062,12 +1055,12 @@ stock GetClientsWithFlags(const String:flagstring[], clients[], maxlen, &amt)
 }
 
 
-stock GetClientWithFlagsCount(const String:flagstring[])
+stock int GetClientWithFlagsCount(const char[] flagstring)
 {
-    new bool:checkFlags = strlen(flagstring) > 0;
-    new flags = ReadFlagString(flagstring);
-    new count = 0;
-    for (new i = 1; i <= MaxClients; i++)
+    bool checkFlags = strlen(flagstring) > 0;
+    int flags = ReadFlagString(flagstring);
+    int count = 0;
+    for (int i = 1; i <= MaxClients; i++)
     {
         if (IsClientInGame(i) && !IsFakeClient(i) && (!checkFlags || (flags & GetUserFlagBits(i))))
         {
@@ -1078,7 +1071,7 @@ stock GetClientWithFlagsCount(const String:flagstring[])
 }
 
 
-stock bool:ClientHasAdminFlags(client, const String:flagString[])
+stock bool ClientHasAdminFlags(int client, const char[] flagString)
 {
     return strlen(flagString) == 0 || (ReadFlagString(flagString) & GetUserFlagBits(client));
 }
@@ -1090,19 +1083,19 @@ stock bool:ClientHasAdminFlags(client, const String:flagString[])
 // sub key in the KV to run the search.
 // Second, it searchs the updated KV for the group that our map is in and filters the information until we only
 // have the map and group information left over.
-stock FilterMapcycleFromArrays(Handle:kv, Handle:exMaps, Handle:exGroups, numExGroups, bool:deleteEmpty=false)
+stock void FilterMapcycleFromArrays(KeyValues kv, ArrayList exMaps, ArrayList exGroups, int numExGroups, bool deleteEmpty = false)
 {
-    new size = GetArraySize(exGroups);
-    new len = size < numExGroups ? size : numExGroups;
-    decl String:group[MAP_LENGTH];
-    for (new i = 0; i < len; i++)
+    int size = exGroups.Length;
+    int len = (size < numExGroups) ? size : numExGroups;
+    char group[MAP_LENGTH];
+    for (int i = 0; i < len; i++)
     {
-        GetArrayString(exGroups, i, group, sizeof(group));
+        exGroups.GetString(i, group, sizeof(group));
         if (!deleteEmpty)
         {
-            KvJumpToKey(kv, group);
+            kv.JumpToKey(group);
             KvDeleteAllSubKeys(kv);
-            KvGoBack(kv);
+            kv.GoBack();
         }
         else
         {
@@ -1110,7 +1103,7 @@ stock FilterMapcycleFromArrays(Handle:kv, Handle:exMaps, Handle:exGroups, numExG
         }
     }
     
-    if (!KvGotoFirstSubKey(kv))
+    if (!kv.GotoFirstSubKey())
     {
         return;
     }
@@ -1122,10 +1115,10 @@ stock FilterMapcycleFromArrays(Handle:kv, Handle:exMaps, Handle:exGroups, numExG
         //Delete the group if there are no valid maps in it.
         if (deleteEmpty) 
         {
-            if (!KvGotoFirstSubKey(kv))
+            if (!kv.GotoFirstSubKey())
             {
                 //DEBUG_MESSAGE("Removing empty group \"%s\".", group)
-                if (KvDeleteThis(kv) == -1)
+                if (kv.DeleteThis() == -1)
                 {
                    // DEBUG_MESSAGE("Mapcycle filtering completed.")
                     return;
@@ -1136,41 +1129,41 @@ stock FilterMapcycleFromArrays(Handle:kv, Handle:exMaps, Handle:exGroups, numExG
                 }
             }
             
-            KvGoBack(kv);
+            kv.GoBack();
         }
-        if (!KvGotoNextKey(kv))
+        if (!kv.GotoNextKey())
         {
             break;
         }
     }
     
-    KvGoBack(kv);
+    kv.GoBack();
     
     //DEBUG_MESSAGE("Mapcycle filtering completed.")
 }
 
 
 //Filters the kv at the level of the map group.
-stock FilterMapGroupFromArrays(Handle:kv, Handle:exMaps, Handle:exGroups)
+stock void FilterMapGroupFromArrays(KeyValues kv, ArrayList exMaps, ArrayList exGroups)
 {
-    decl String:group[MAP_LENGTH];
-    KvGetSectionName(kv, group, sizeof(group));
+    char group[MAP_LENGTH];
+    kv.GetSectionName(group, sizeof(group));
     
-    if (!KvGotoFirstSubKey(kv))
+    if (!kv.GotoFirstSubKey())
     {
         return;
     }
     
     //DEBUG_MESSAGE("Starting filtering of map group \"%s\".", group)
     
-    decl String:mapName[MAP_LENGTH];
+    char mapName[MAP_LENGTH];
     for ( ; ; )
     {
-        KvGetSectionName(kv, mapName, sizeof(mapName));
+        kv.GetSectionName(mapName, sizeof(mapName));
         if (IsMapInArrays(mapName, group, exMaps, exGroups))
         {
             //DEBUG_MESSAGE("Removing invalid map \"%s\" from group \"%s\".", mapName, group)
-            if (KvDeleteThis(kv) == -1)
+            if (kv.DeleteThis() == -1)
             {
                 //DEBUG_MESSAGE("Map Group filtering completed for group \"%s\".", group)
                 return;
@@ -1178,35 +1171,35 @@ stock FilterMapGroupFromArrays(Handle:kv, Handle:exMaps, Handle:exGroups)
         }
         else
         {
-            if (!KvGotoNextKey(kv))
+            if (!kv.GotoNextKey())
             {
                 break;
             }
         }
     }
     
-    KvGoBack(kv);
+    kv.GoBack();
     
     //DEBUG_MESSAGE("Map Group filtering completed for group \"%s\".", group)
 }
 
 
-stock bool:IsMapInArrays(const String:map[], const String:group[], Handle:exMaps, Handle:exGroups)
+stock bool IsMapInArrays(const char[] map, const char[] group, ArrayList exMaps, ArrayList exGroups)
 {
     //DEBUG_MESSAGE("Starting exclusion traversal...")
-    new index = -1;
-    new bool:isExcluded = false;
-    decl String:exGroup[MAP_LENGTH];
-    if (exMaps != INVALID_HANDLE && exGroups != INVALID_HANDLE)
+    int index = -1;
+    bool isExcluded = false;
+    char exGroup[MAP_LENGTH];
+    if (exMaps != null && exGroups != null)
     {
-        new gSize = GetArraySize(exGroups);
+        int gSize = exGroups.Length;
         do
         {
             index = FindStringInArrayEx(exMaps, map, index+1);
             if (index >= 0 && index < gSize)
             {
                 //DEBUG_MESSAGE("Map found at %i", index)
-                GetArrayString(exGroups, index, exGroup, sizeof(exGroup));
+                exGroups.GetString(index, exGroup, sizeof(exGroup));
                 isExcluded = StrEqual(exGroup, group, false);
                 //DEBUG_MESSAGE("Map Excluded? %i (%s | %s)", _:isExcluded, exGroup, group)
             }
@@ -1218,40 +1211,40 @@ stock bool:IsMapInArrays(const String:map[], const String:group[], Handle:exMaps
 }
 
 
-stock bool:GroupExcludedPreviouslyPlayed(const String:group[], Handle:exGroups, numExGroups)
+stock bool GroupExcludedPreviouslyPlayed(const char[] group, ArrayList exGroups, int numExGroups)
 {
     if (numExGroups <= 0) 
     {
         return false;
     }
     
-    new i = FindStringInArray(exGroups, group);
+    int i = FindStringInArray(exGroups, group);
     return i != -1 && i < numExGroups;
 }
 
 
-stock bool:MapExcludedPreviouslyPlayed(const String:map[], const String:group[], Handle:exMaps, Handle:exGroups, numExGroups)
+stock bool MapExcludedPreviouslyPlayed(const char[] map, const char[] group, ArrayList exMaps, ArrayList exGroups, int numExGroups)
 {
     return GroupExcludedPreviouslyPlayed(group, exGroups, numExGroups) || IsMapInArrays(map, group, exMaps, exGroups);
 }
 
 
-stock bool:KvDeleteSubKey(Handle:kv, const String:name[])
+stock bool KvDeleteSubKey(KeyValues kv, const char[] name)
 {
-    return KvJumpToKey(kv, name) && (KvDeleteThis(kv) == -1 || KvGoBack(kv));
+    return kv.JumpToKey(name) && (kv.DeleteThis() == -1 || kv.GoBack());
 }
 
 
-stock KvDeleteAllSubKeys(Handle:kv)
+stock void KvDeleteAllSubKeys(KeyValues kv)
 {
-    if (!KvGotoFirstSubKey(kv))
+    if (!kv.GotoFirstSubKey())
     {
         return;
     }
     
     for ( ; ; )
     {
-        if (KvDeleteThis(kv) == -1)
+        if (kv.DeleteThis() == -1)
         {
             return;
         }
@@ -1259,38 +1252,38 @@ stock KvDeleteAllSubKeys(Handle:kv)
 }
 
 
-stock Handle:CloseAndClone(Handle:hndl, Handle:newOwner)
+stock Handle CloseAndClone(Handle hndl, Handle newOwner)
 {
-    new Handle:result = CloneHandle(hndl, newOwner);
+    Handle result = CloneHandle(hndl, newOwner);
     CloseHandle(hndl);
     return result;
 }
 
 
-stock ConvertClientsToUserIDs(const clients[], userIds[], amt)
+stock void ConvertClientsToUserIDs(const int[] clients, int[] userIds, int amt)
 {
-    for (new i = 0; i < amt; i++)
+    for (int i = 0; i < amt; i++)
     {
         userIds[i] = GetClientUserId(clients[i]);
     }
 }
 
 
-stock ConvertUserIDsToClients(const userIds[], clients[], amt)
+stock void ConvertUserIDsToClients(const int[] userIds, int[] clients, int amt)
 {
-    for (new i = 0; i < amt; i++)
+    for (int i = 0; i < amt; i++)
     {
         clients[i] = GetClientOfUserId(userIds[i]);
     }
 }
 
 
-stock bool:GetTrieArray2(Handle:trie, const String:key[], any:arr[], max_size, &size=0) 
+stock bool GetTrieArray2(StringMap trie, const char[] key, any[] arr, int max_size, int &size = 0) 
 { 
-    new bool:result = GetTrieArray(trie, key, arr, max_size, size); 
-    if (!result) 
+    bool result = trie.GetArray(key, arr, max_size, size); 
+    if (!result)
     {
-        result = GetTrieValue(trie, key, arr[0]); 
+        result = trie.GetValue(key, arr[0]); 
         if (result) 
         { 
             size = 1;
@@ -1301,17 +1294,17 @@ stock bool:GetTrieArray2(Handle:trie, const String:key[], any:arr[], max_size, &
 }
 
 
-stock ArrayMin(const arr[], maxlen, &idx=0)
+stock int ArrayMin(const int[] arr, int maxlen, int &idx = 0)
 {
     if (maxlen <= 0)
     {
         return 0;
     }
     
-    new minIdx = 0;
-    new min = arr[0];
-    new tmp;
-    for (new i = 1; i < maxlen; i++)
+    int minIdx = 0;
+    int min = arr[0];
+    int tmp;
+    for (int i = 1; i < maxlen; i++)
     {
         tmp = arr[i];
         if (tmp < min)
@@ -1327,17 +1320,17 @@ stock ArrayMin(const arr[], maxlen, &idx=0)
 }
 
 
-stock ArrayMax(const arr[], maxlen, &idx=0)
+stock int ArrayMax(const int[] arr, int maxlen, int &idx = 0)
 {
     if (maxlen <= 0)
     {
         return 0;
     }
     
-    new maxIdx = 0;
-    new max = arr[0];
-    new tmp;
-    for (new i = 1; i < maxlen; i++)
+    int maxIdx = 0;
+    int max = arr[0];
+    int tmp;
+    for (int i = 1; i < maxlen; i++)
     {
         tmp = arr[i];
         if (tmp > max)
