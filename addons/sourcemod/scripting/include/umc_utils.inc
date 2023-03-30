@@ -72,10 +72,9 @@ stock void LogUMCMessage(const char[] message, any ...)
 }
 
 
-stock void StringToUpper(char []str)
+stock void StringToUpper(char[] str)
 {
-    int i = 0;
-    while(str[i] != '\0')
+    for (int i = 0; str[i] != '\0'; i++)
     {
         str[i] = CharToUpper(str[i]);
     }
@@ -128,7 +127,7 @@ stock bool ConvertNormalMapcycle(KeyValues kv, const char[] filename)
     //DEBUG_MESSAGE("Fetching first line.")
     char firstLine[256];
     bool foundDef = false;
-    while (ReadFileLine(file, firstLine, sizeof(firstLine)))
+    while (file.ReadLine(firstLine, sizeof(firstLine)))
     {
         TrimString(firstLine);
         if (strlen(firstLine) > 0)
@@ -141,7 +140,7 @@ stock bool ConvertNormalMapcycle(KeyValues kv, const char[] filename)
     if (!foundDef)
     {
         //DEBUG_MESSAGE("Couldn't find first line")
-        delete file;
+        file.Close();
         return false;
     }
     
@@ -154,14 +153,14 @@ stock bool ConvertNormalMapcycle(KeyValues kv, const char[] filename)
     
     char buffer[5];
     
-    if (MatchRegex(re, firstLine) > 1)
+    if (re.Match(firstLine) > 1)
     {
-        GetRegexSubString(re, 1, buffer, sizeof(buffer));
+        re.GetSubString(1, buffer, sizeof(buffer));
     }
     else
     {
         //DEBUG_MESSAGE("Header was not found. Aborting.")
-        delete file;
+        file.Close();
         return false;
     }
     
@@ -172,27 +171,28 @@ stock bool ConvertNormalMapcycle(KeyValues kv, const char[] filename)
         re2 = new Regex("^\\s*([^/\\\\:*?'\"<>|\\s]+)\\s*(?://.*)?$");
     }
 
-    KvJumpToKey(kv, "Mapcycle", true);
-    KvSetNum(kv, "maps_invote", StringToInt(buffer));
+    kv.JumpToKey("Mapcycle", true);
+    kv.SetNum("maps_invote", StringToInt(buffer));
     
     //DEBUG_MESSAGE("Parsing maps.")
     
     char map[MAP_LENGTH];
     char line[256];
-    while (ReadFileLine(file, line, sizeof(line)))
+    while (file.ReadLine(line, sizeof(line)))
     {
         TrimString(line);
-        if (MatchRegex(re2, line) > 1)
+        if (re2.Match(line) > 1)
         {
-            GetRegexSubString(re2, 1, map, sizeof(map));
+            re2.GetSubString(1, map, sizeof(map));
             //DEBUG_MESSAGE("Adding map: %s", map)
-            KvJumpToKey(kv, map, true);
-            KvGoBack(kv);
+            kv.JumpToKey(map, true);
+            kv.GoBack();
         }
     }
     
-    CloseHandle(file);
-    KvGoBack(kv);
+    kv.GoBack();
+    file.Close();
+
     return true;
 }
 
@@ -201,7 +201,7 @@ stock bool ConvertNormalMapcycle(KeyValues kv, const char[] filename)
 //  kv: Mapcycle Keyvalues that must be at the root value.
 stock bool KvJumpToMap(KeyValues kv, const char[] map)
 {
-    if (!KvGotoFirstSubKey(kv))
+    if (!kv.GotoFirstSubKey())
     {
         return false;
     }    
@@ -209,26 +209,27 @@ stock bool KvJumpToMap(KeyValues kv, const char[] map)
     
     do
     {
-        if (!KvGotoFirstSubKey(kv))
+        if (!kv.GotoFirstSubKey())
         {
             continue;
         }
         
         do
         {
-            KvGetSectionName(kv, mapName, sizeof(mapName));
+            kv.GetSectionName(mapName, sizeof(mapName));
             if (StrEqual(mapName, map))
             {
                 return true;
             }
         }
-        while (KvGotoNextKey(kv));
+        while (kv.GotoNextKey());
         
-        KvGoBack(kv);
+        kv.GoBack();
     }
-    while (KvGotoNextKey(kv));
+    while (kv.GotoNextKey());
     
-    KvGoBack(kv);
+    kv.GoBack();
+
     return false;
 }
 
@@ -240,7 +241,7 @@ stock bool KvJumpToMap(KeyValues kv, const char[] map)
 //  maxlen: Maximum length of the buffer.
 stock bool KvFindGroupOfMap(KeyValues kv, const char[] map, char[] buffer, int maxlen)
 {
-    if (!KvGotoFirstSubKey(kv))
+    if (!kv.GotoFirstSubKey())
     {
         return false;
     }
@@ -248,30 +249,31 @@ stock bool KvFindGroupOfMap(KeyValues kv, const char[] map, char[] buffer, int m
     char mapName[MAP_LENGTH], groupName[MAP_LENGTH];
     do
     {
-        KvGetSectionName(kv, groupName, sizeof(groupName));
+        kv.GetSectionName(groupName, sizeof(groupName));
         
-        if (!KvGotoFirstSubKey(kv))
+        if (!kv.GotoFirstSubKey())
         {
             continue;
         }
         
         do
         {
-            KvGetSectionName(kv, mapName, sizeof(mapName));
+            kv.GetSectionName(mapName, sizeof(mapName));
             if (StrEqual(mapName, map, false))
             {
-                KvGoBack(kv);
-                KvGoBack(kv);
+                kv.GoBack();
+                kv.GoBack();
+
                 strcopy(buffer, maxlen, groupName);
                 return true;
             }
         }
-        while (KvGotoNextKey(kv));
+        while (kv.GotoNextKey());
         
-        KvGoBack(kv);
+        kv.GoBack();
     }
-    while (KvGotoNextKey(kv));
-    KvGoBack(kv);
+    while (kv.GotoNextKey());
+    kv.GoBack();
     return false;
 }
 
@@ -285,17 +287,54 @@ enum CustomHudFallbackType
 };
 
 //Color Arrays for colors in warning messages.
-static int g_iSColors[7]             = {1, 3, 3, 4, 4, 5, 6};
-static char g_sSColors[7][13]  = {"{DEFAULT}", "{LIGHTGREEN}", "{TEAM}", "{GREEN}", "{RED}",
-                                    "{DARKGREEN}", "{YELLOW}"};
-static int g_iTColors[13][3]         = {{255, 255, 255}, {255,   0,   0}, {  0, 255,   0}, 
-                                    {  0,   0, 255}, {255, 255,   0}, {255,   0, 255},
-                                    {  0, 255, 255}, {255, 128,   0}, {255,   0, 128},
-                                    {128, 255,   0}, {  0, 255, 128}, {128,   0, 255}, 
-                                    {  0, 128, 255}};
-static char g_sTColors[13][12] = {"{WHITE}", "{RED}", "{GREEN}", "{BLUE}", "{YELLOW}", "{PURPLE}",
-                                    "{CYAN}", "{ORANGE}", "{PINK}", "{OLIVE}", "{LIME}", "{VIOLET}",    
-                                    "{LIGHTBLUE}"};
+static int g_iSColors[7] = {
+    1,
+    3,
+    3,
+    4,
+    4,
+    5,
+    6
+};
+static char g_sSColors[7][] = {
+    "{DEFAULT}",
+    "{LIGHTGREEN}",
+    "{TEAM}",
+    "{GREEN}",
+    "{RED}",
+    "{DARKGREEN}",
+    "{YELLOW}"
+};
+static int g_iTColors[13][4] = {
+    {255, 255, 255, 255},
+    {255,   0,   0, 255},
+    {  0, 255,   0, 255}, 
+    {  0,   0, 255, 255},
+    {255, 255,   0, 255},
+    {255,   0, 255, 255},
+    {  0, 255, 255, 255},
+    {255, 128,   0, 255},
+    {255,   0, 128, 255},
+    {128, 255,   0, 255},
+    {  0, 255, 128, 255},
+    {128,   0, 255, 255}, 
+    {  0, 128, 255, 255}
+};
+static char g_sTColors[13][] = {
+    "{WHITE}",
+    "{RED}",
+    "{GREEN}",
+    "{BLUE}",
+    "{YELLOW}",
+    "{PURPLE}",
+    "{CYAN}",
+    "{ORANGE}",
+    "{PINK}",
+    "{OLIVE}",
+    "{LIME}",
+    "{VIOLET}",    
+    "{LIGHTBLUE}"
+};
 
 //Handle to the Center Message timer. For Vote Warnings.
 static Handle center_message_timer = null;
@@ -341,7 +380,8 @@ stock void DisplayServerMessage(const char[] msg, const char[] type)
     {
         strcopy(sTextTmp, sizeof(sTextTmp), message);
         char sColor[16];
-        int iColor = -1, iPos = BreakString(sTextTmp, sColor, sizeof(sColor));
+        int iColor = -1;
+        int iPos = BreakString(sTextTmp, sColor, sizeof(sColor));
         
         for (int i = 0; i < sizeof(g_sTColors); i++)
         {
@@ -357,8 +397,9 @@ stock void DisplayServerMessage(const char[] msg, const char[] type)
             iColor = 0;
         }
         
-        KeyValues hKv = CreateKeyValues("Stuff", "title", sTextTmp[iPos]);
-        hKv.SetColor("color", g_iTColors[iColor][0], g_iTColors[iColor][1], g_iTColors[iColor][2], 255);
+        KeyValues hKv = new KeyValues("Stuff");
+        hKv.SetString("title", sTextTmp[iPos]);
+        hKv.SetColor4("color", g_iTColors[iColor]);
         hKv.SetNum("level", 1);
         hKv.SetNum("time", 10);
 
@@ -435,8 +476,8 @@ public Action Timer_CenterAd(Handle timer, DataPack pack)
     else
     {
         iCount = 0;
-        center_message_timer = null;
         center_warning_active = false;
+        center_message_timer = null;
         return Plugin_Stop;
     }
 }
@@ -547,7 +588,7 @@ stock void TrimArray(ArrayList arr, int size)
 stock void AddToMemoryArray(const char[] mapName, ArrayList arr, int size)
 {
     //Add the new map to the beginning of the array.
-    arr.SetString(0, mapName);
+    InsertArrayString(arr, 0, mapName);
     
     //Trim the array down to size.
     TrimArray(arr, size);
@@ -760,7 +801,7 @@ stock bool GetWeightedRandomSubKey(char[] buffer, int size, ArrayList weightArr,
 
 int Sort_MapWeight(int index1, int index2, ArrayList weightArr, ArrayList nameArr)
 {
-	if (weightArr.Get(index1) < weightArr.Get(index2))
+	if (view_as<float>(weightArr.Get(index1)) < view_as<float>(weightArr.Get(index2)))
 	{
 		SwapArrayItems(nameArr, index1, index2);
 		return 1;
@@ -910,10 +951,10 @@ int CompareMapTries(int index1, int index2, ArrayList array, Handle hndl)
          group1[MAP_LENGTH], group2[MAP_LENGTH];
     
     StringMap map = null;
-    map = array.Get(index1);
+    map = view_as<StringMap>(array.Get(index1));
     map.GetString(MAP_TRIE_MAP_KEY, map1, sizeof(map1));
     map.GetString(MAP_TRIE_GROUP_KEY, group1, sizeof(group1));
-    map = array.Get(index2);
+    map = view_as<StringMap>(array.Get(index2));
     map.GetString(MAP_TRIE_MAP_KEY, map2, sizeof(map2));
     map.GetString(MAP_TRIE_GROUP_KEY, group2, sizeof(group2));
     
@@ -945,7 +986,7 @@ stock void PrintKvToConsole(KeyValues kv, int client, int depth = 0)
     
     PrintToConsole(client, "%s\"%s\"", space, section);
     
-    if (!KvGotoFirstSubKey(kv))
+    if (!kv.GotoFirstSubKey())
     {
         return;
     }
@@ -970,9 +1011,9 @@ stock void LogKv(KeyValues kv, int depth = 0)
     char[] space = new char[whitespace];
     FillWhiteSpace(space, whitespace);
     
-    //LogUMCMessage("%i: %s\"%s\"", depth+1, space, section);
+    LogUMCMessage("%i: %s\"%s\"", depth+1, space, section);
     
-    if (!KvGotoFirstSubKey(kv))
+    if (!kv.GotoFirstSubKey())
     {
         return;
     }
@@ -1006,7 +1047,7 @@ stock void PrintNominationArray(ArrayList array)
     int size = array.Length;
     for (int i = 0; i < size; i++)
     {
-        nom = array.Get(i);
+        nom = view_as<StringMap>(array.Get(i));
         nom.GetString(MAP_TRIE_MAP_KEY, map, sizeof(map));
         nom.GetString(MAP_TRIE_GROUP_KEY, group, sizeof(group));
         //LogUMCMessage("%20s   |    %20s", map, group);
@@ -1281,7 +1322,7 @@ stock void ConvertUserIDsToClients(const int[] userIds, int[] clients, int amt)
 stock bool GetTrieArray2(StringMap trie, const char[] key, any[] arr, int max_size, int &size = 0) 
 { 
     bool result = trie.GetArray(key, arr, max_size, size); 
-    if (!result)
+    if (!result) 
     {
         result = trie.GetValue(key, arr[0]); 
         if (result) 

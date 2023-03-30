@@ -23,7 +23,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 #pragma semicolon 1
 
 #define PL_VERSION "3.7.1"
-#define UMC_DEBUG 1
+#define UMC_DEBUG 0
 #define AUTOUPDATE_ENABLE 0
 #define AUTOUPDATE_DEV 0
 
