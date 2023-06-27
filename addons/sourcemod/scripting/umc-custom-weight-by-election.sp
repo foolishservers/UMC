@@ -56,12 +56,12 @@ public void OnPluginStart()
 	g_cvarPointExponent.AddChangeHook(CVC_PointExponent);
 }
 
-public int UMC_OnReweightMap(Handle kv, const char[] map, const char[] group)
+public void UMC_OnReweightMap(KeyValues kv, const char[] map, const char[] group)
 {
 	Database db = connectToDatabase();
 	if(db == null)
 	{
-		return 0;
+		return;
 	}
 
 	int point = 0;
@@ -74,26 +74,26 @@ public int UMC_OnReweightMap(Handle kv, const char[] map, const char[] group)
 	char[] escapedGroup = new char[escapedGroupLength];
 	db.Escape(group, escapedGroup, escapedGroupLength);
 
-	if(!InsertMapWeight(db, escapedMap, escapedGroup)) return 0;
+	if(!InsertMapWeight(db, escapedMap, escapedGroup)) return;
 
-	if(!SelectMapWeight(db, escapedMap, escapedGroup, point)) return 0;
+	if(!SelectMapWeight(db, escapedMap, escapedGroup, point)) return;
 	
 	UMC_AddWeightModifier(1.0 + Pow(point * g_fPointMultiplierAmount, g_fPointExponentAmount));
 	point += g_iPointAdditionAmount;
 	
-	if(!UpdateMapWeight(db, escapedMap, escapedGroup, point)) return 0;
+	if(!UpdateMapWeight(db, escapedMap, escapedGroup, point)) return;
 
 	delete db;
 
-	return 0;
+	return;
 }
 
-public int UMC_OnReweightGroup(Handle kv, const char[] group)
+public void UMC_OnReweightGroup(KeyValues kv, const char[] group)
 {
 	Database db = connectToDatabase();
 	if(db == null)
 	{
-		return 0;
+		return;
 	}
 
 	int point = 0;
@@ -102,21 +102,21 @@ public int UMC_OnReweightGroup(Handle kv, const char[] group)
 	char[] escapedGroup = new char[escapedGroupLength];
 	db.Escape(group, escapedGroup, escapedGroupLength);
 
-	if(!InsertGroupWeight(db, escapedGroup)) return 0;
+	if(!InsertGroupWeight(db, escapedGroup)) return;
 
-	if(!SelectGroupWeight(db, escapedGroup, point)) return 0;
+	if(!SelectGroupWeight(db, escapedGroup, point)) return;
 
 	UMC_AddWeightModifier(1.0 + Pow(point * g_fPointMultiplierAmount, g_fPointExponentAmount));
 	point += g_iPointAdditionAmount;
 	
-	if(!UpdateGroupWeight(db, escapedGroup, point)) return 0;
+	if(!UpdateGroupWeight(db, escapedGroup, point)) return;
 
 	delete db;
 
-	return 0;
+	return;
 }
 
-public int UMC_OnNextmapSet(Handle kv, const char[] map, const char[] group, const char[] display)
+public void UMC_OnNextmapSet(KeyValues kv, const char[] map, const char[] group, const char[] display)
 {
 	Database db = connectToDatabase();
 	if(db == null)

@@ -18,6 +18,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 *************************************************************************
 *************************************************************************/  
 #pragma semicolon 1
+#pragma newdecls required
 
 #include <sourcemod>
 #include <umc-core>
@@ -69,9 +70,8 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 
 #define ADMINMENU_ADMINFLAG_KEY "adminmenu_flags"
 
-
 //Plugin Information
-public Plugin:myinfo =
+public Plugin myinfo =
 {
     name        = "[UMC] Admin Menu",
     author      = "Previous:Steell,Powerlord - Current: Mr.Silence",
@@ -81,68 +81,67 @@ public Plugin:myinfo =
 };
 
 ////----CONVARS-----/////
-new Handle:cvar_filename             = INVALID_HANDLE;
-new Handle:cvar_scramble             = INVALID_HANDLE;
-new Handle:cvar_vote_time            = INVALID_HANDLE;
-new Handle:cvar_strict_noms          = INVALID_HANDLE;
-new Handle:cvar_runoff               = INVALID_HANDLE;
-new Handle:cvar_runoff_sound         = INVALID_HANDLE;
-new Handle:cvar_runoff_max           = INVALID_HANDLE;
-new Handle:cvar_vote_allowduplicates = INVALID_HANDLE;
-new Handle:cvar_vote_threshold       = INVALID_HANDLE;
-new Handle:cvar_fail_action          = INVALID_HANDLE;
-new Handle:cvar_runoff_fail_action   = INVALID_HANDLE;
-new Handle:cvar_extend_rounds        = INVALID_HANDLE;
-new Handle:cvar_extend_frags         = INVALID_HANDLE;
-new Handle:cvar_extend_time          = INVALID_HANDLE;
-new Handle:cvar_extensions           = INVALID_HANDLE;
-new Handle:cvar_vote_mem             = INVALID_HANDLE;
-new Handle:cvar_vote_startsound      = INVALID_HANDLE;
-new Handle:cvar_vote_endsound        = INVALID_HANDLE;
-new Handle:cvar_vote_catmem          = INVALID_HANDLE;
-new Handle:cvar_dontchange           = INVALID_HANDLE;
-new Handle:cvar_defaultsflags        = INVALID_HANDLE;
-new Handle:cvar_flags                = INVALID_HANDLE;
-new Handle:cvar_ignoreexcludeflags   = INVALID_HANDLE;
+ConVar cvar_filename;
+ConVar cvar_scramble;
+ConVar cvar_vote_time;
+ConVar cvar_strict_noms;
+ConVar cvar_runoff;
+ConVar cvar_runoff_sound;
+ConVar cvar_runoff_max;
+ConVar cvar_vote_allowduplicates;
+ConVar cvar_vote_threshold;
+ConVar cvar_fail_action;
+ConVar cvar_runoff_fail_action;
+ConVar cvar_extend_rounds;
+ConVar cvar_extend_frags;
+ConVar cvar_extend_time;
+ConVar cvar_extensions;
+ConVar cvar_vote_mem;
+ConVar cvar_vote_startsound;
+ConVar cvar_vote_endsound;
+ConVar cvar_vote_catmem;
+ConVar cvar_dontchange;
+ConVar cvar_defaultsflags;
+ConVar cvar_flags;
+ConVar cvar_ignoreexcludeflags;
 ////----/CONVARS-----/////
 
 //Mapcycle KV
-new Handle:map_kv = INVALID_HANDLE;
-new Handle:umc_mapcycle = INVALID_HANDLE;
+KeyValues map_kv;
+KeyValues umc_mapcycle;
 
 //Memory queues. Used to store the previously played maps.
-new Handle:vote_mem_arr    = INVALID_HANDLE;
-new Handle:vote_catmem_arr = INVALID_HANDLE;
+ArrayList vote_mem_arr;
+ArrayList vote_catmem_arr;
 
 //Sounds to be played at the start and end of votes.
-new String:vote_start_sound[PLATFORM_MAX_PATH], String:vote_end_sound[PLATFORM_MAX_PATH],
-    String:runoff_sound[PLATFORM_MAX_PATH];
+char vote_start_sound[PLATFORM_MAX_PATH], vote_end_sound[PLATFORM_MAX_PATH], runoff_sound[PLATFORM_MAX_PATH];
     
 //Can we start a vote (is the mapcycle valid?)
-new bool:can_vote;
+bool can_vote;
 
 //Admin Menu
-new Handle:admin_menu = INVALID_HANDLE;
+TopMenu admin_menu;
 //new TopMenuObject:umc_menu;
 
 //Tries to store menu selections / build options.
-new Handle:menu_tries[MAXPLAYERS];
+StringMap menu_tries[MAXPLAYERS];
 
 //Flags for Chat Triggers
-new bool:runoff_trigger[MAXPLAYERS];
-new bool:runoff_menu_trigger[MAXPLAYERS];
-new bool:threshold_trigger[MAXPLAYERS];
-new bool:threshold_menu_trigger[MAXPLAYERS];
+bool runoff_trigger[MAXPLAYERS];
+bool runoff_menu_trigger[MAXPLAYERS];
+bool threshold_trigger[MAXPLAYERS];
+bool threshold_menu_trigger[MAXPLAYERS];
 
 //Regex objects for chat triggers
-new Handle:runoff_regex = INVALID_HANDLE;
-new Handle:threshold_regex = INVALID_HANDLE;
+Regex runoff_regex;
+Regex threshold_regex;
 
 //************************************************************************************************//
 //                                        SOURCEMOD EVENTS                                        //
 //************************************************************************************************//
 //Called when the plugin is finished loading.
-public OnPluginStart()
+public void OnPluginStart()
 {
     cvar_ignoreexcludeflags = CreateConVar(
         "sm_umc_am_adminflags_exclude",
@@ -307,18 +306,18 @@ public OnPluginStart()
     AddCommandListener(OnPlayerChat, "say_team");
     
     //Initialize our memory arrays
-    new numCells = ByteCountToCells(MAP_LENGTH);
+    int numCells = ByteCountToCells(MAP_LENGTH);
     vote_mem_arr    = CreateArray(numCells);
     vote_catmem_arr = CreateArray(numCells);
     
     //Manually fire AdminMenu callback.
-    new Handle:topmenu;
-    if ((topmenu = GetAdminTopMenu()) != INVALID_HANDLE)
+    TopMenu topmenu;
+    if ((topmenu = GetAdminTopMenu()) != null)
     {
         OnAdminMenuReady(topmenu);
     }
     
-    runoff_regex    = CompileRegex("^([0-9]+)\\s*$");
+    runoff_regex = CompileRegex("^([0-9]+)\\s*$");
     threshold_regex = CompileRegex("^([0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)%?\\s*$");
     
     //Load the translations file
@@ -330,15 +329,15 @@ public OnPluginStart()
 //                                           GAME EVENTS                                          //
 //************************************************************************************************//
 //Called after all config files were executed.
-public OnConfigsExecuted()
+public void OnConfigsExecuted()
 {
     can_vote = ReloadMapcycle();
     
     //Grab the name of the current map.
-    decl String:mapName[MAP_LENGTH];
+    char mapName[MAP_LENGTH];
     GetCurrentMap(mapName, sizeof(mapName));
     
-    decl String:groupName[MAP_LENGTH];
+    char groupName[MAP_LENGTH];
     UMC_GetCurrentMapGroup(groupName, sizeof(groupName));
     
     if (can_vote && StrEqual(groupName, INVALID_GROUP, false))
@@ -348,8 +347,8 @@ public OnConfigsExecuted()
     
     //TODO -- Set to 11, add options in menus to specify a smaller amount
     //Add the map to all the memory queues.
-    new mapmem = GetConVarInt(cvar_vote_mem);
-    new catmem = GetConVarInt(cvar_vote_catmem);
+    int mapmem = cvar_vote_mem.IntValue;
+    int catmem = cvar_vote_catmem.IntValue;
     AddToMemoryArray(mapName, vote_mem_arr, mapmem); //11); 
     AddToMemoryArray(groupName, vote_catmem_arr, (mapmem > catmem) ? mapmem : catmem); //11);
     
@@ -359,13 +358,13 @@ public OnConfigsExecuted()
     }
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
     SetupVoteSounds();
 }
 
 //Called when a player types in chat
-public Action:OnPlayerChat(client, const String:command[], argc)
+public Action OnPlayerChat(int client, const char[] command, int argc)
 {
     //Return immediately if nothing was typed.
     if (argc == 0) 
@@ -374,7 +373,7 @@ public Action:OnPlayerChat(client, const String:command[], argc)
     }
     
     //Get what was typed.
-    decl String:text[13];
+    char text[13];
     GetCmdArg(1, text, sizeof(text));
     
     if (threshold_trigger[client] && ProcessThresholdText(client, text))
@@ -394,20 +393,20 @@ public Action:OnPlayerChat(client, const String:command[], argc)
 //                                              SETUP                                             //
 //************************************************************************************************//
 //Parses the mapcycle file and returns a KV handle representing the mapcycle.
-Handle:GetMapcycle()
+KeyValues GetMapcycle()
 {
     //Grab the file name from the cvar.
-    decl String:filename[PLATFORM_MAX_PATH];
+    char filename[PLATFORM_MAX_PATH];
     GetConVarString(cvar_filename, filename, sizeof(filename));
     
     //Get the kv handle from the file.
-    new Handle:result = GetKvFromFile(filename, "umc_rotation");
+    KeyValues result = GetKvFromFile(filename, "umc_rotation");
     
     //Log an error and return empty handle if the mapcycle file failed to parse.
-    if (result == INVALID_HANDLE)
+    if (result == null)
     {
         LogError("SETUP: Mapcycle failed to load!");
-        return INVALID_HANDLE;
+        return null;
     }
     
     //Success!
@@ -415,37 +414,37 @@ Handle:GetMapcycle()
 }
 
 //Reloads the mapcycle. Returns true on success, false on failure.
-bool:ReloadMapcycle()
+bool ReloadMapcycle()
 {
-    if (umc_mapcycle != INVALID_HANDLE)
+    if (umc_mapcycle != null)
     {
         CloseHandle(umc_mapcycle);
-        umc_mapcycle = INVALID_HANDLE;
+        umc_mapcycle = null;
     }
-    if (map_kv != INVALID_HANDLE)
+    if (map_kv != null)
     {
         CloseHandle(map_kv);
-        map_kv = INVALID_HANDLE;
+        map_kv = null;
     }
     umc_mapcycle = GetMapcycle();
     
-    return umc_mapcycle != INVALID_HANDLE;
+    return umc_mapcycle != null;
 }
 
-RemovePreviousMapsFromCycle()
+void RemovePreviousMapsFromCycle()
 {
-    map_kv = CreateKeyValues("umc_rotation");
+    map_kv = new KeyValues("umc_rotation");
     KvCopySubkeys(umc_mapcycle, map_kv);
-    FilterMapcycleFromArrays(map_kv, vote_mem_arr, vote_catmem_arr, GetConVarInt(cvar_vote_catmem));
+    FilterMapcycleFromArrays(map_kv, vote_mem_arr, vote_catmem_arr, cvar_vote_catmem.IntValue);
 }
 
 //Sets up the vote sounds.
-SetupVoteSounds()
+void SetupVoteSounds()
 {
     //Grab sound files from cvars.
-    GetConVarString(cvar_vote_startsound, vote_start_sound, sizeof(vote_start_sound));
-    GetConVarString(cvar_vote_endsound, vote_end_sound, sizeof(vote_end_sound));
-    GetConVarString(cvar_runoff_sound, runoff_sound, sizeof(runoff_sound));
+    cvar_vote_startsound.GetString(vote_start_sound, sizeof(vote_start_sound));
+    cvar_vote_endsound.GetString(vote_end_sound, sizeof(vote_end_sound));
+    cvar_runoff_sound.GetString(runoff_sound, sizeof(runoff_sound));
     
     //Gotta cache 'em all!
     CacheSound(vote_start_sound);
@@ -457,18 +456,19 @@ SetupVoteSounds()
 //                                           ADMIN MENU                                           //
 //************************************************************************************************//
 //Sets up the admin menu when it is ready to be set up.
-public OnAdminMenuReady(Handle:topmenu)
+public void OnAdminMenuReady(Handle topmenu)
 {
+    TopMenu topMenu = view_as<TopMenu>(topmenu);
     //Block this from being called twice
-    if (topmenu == admin_menu)
+    if (topMenu == admin_menu)
     {
         return;
     }
     
     //Setup menu...
-    admin_menu = topmenu;
+    admin_menu = topMenu;
     
-    new TopMenuObject:umc_menu = AddToTopMenu(
+    TopMenuObject umc_menu = AddToTopMenu(
         admin_menu, "Ultimate Mapchooser", TopMenuObject_Category,
         Adm_CategoryHandler, INVALID_TOPMENUOBJECT
     );
@@ -490,7 +490,7 @@ public OnAdminMenuReady(Handle:topmenu)
 }
 
 //Handles the UMC category in the admin menu.
-public Adm_CategoryHandler(Handle:topmenu, TopMenuAction:action, TopMenuObject:object_id, param, String:buffer[], maxlength)
+public void Adm_CategoryHandler(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int param, char[] buffer, int maxlength)
 {
     if (action == TopMenuAction_DisplayTitle || action == TopMenuAction_DisplayOption)
     {
@@ -499,8 +499,7 @@ public Adm_CategoryHandler(Handle:topmenu, TopMenuAction:action, TopMenuObject:o
 }
 
 //Handles the Change Map option in the menu.
-public UMCMenu_ChangeMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, client,
-                         String:buffer[], maxlength)
+public void UMCMenu_ChangeMap(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
 {
     if (action == TopMenuAction_DisplayOption)
     {
@@ -513,8 +512,7 @@ public UMCMenu_ChangeMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:obj
 }
 
 //Handles the Change Map option in the menu.
-public UMCMenu_NextMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, client,
-                       String:buffer[], maxlength)
+public void UMCMenu_NextMap(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
 {
     if (action == TopMenuAction_DisplayOption)
     {
@@ -527,7 +525,7 @@ public UMCMenu_NextMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
 }
 
 //Handles the Change Map option in the menu.
-public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, client, String:buffer[], maxlength)
+public void UMCMenu_MapVote(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
 {
     if (action == TopMenuAction_DisplayOption)
     {
@@ -599,15 +597,15 @@ public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
     }
 }
 
-Handle:CreateVoteMenuTrie(client)
+StringMap CreateVoteMenuTrie(int client)
 {
-    new Handle:trie = CreateTrie();
-    new Handle:mapList = CreateArray();
+    StringMap trie = new StringMap();
+    ArrayList mapList = new ArrayList();
     SetTrieValue(trie, "maps", mapList);
     
-    new bool:ignoreExclude = false;
-    decl String:flags[64];
-    GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+    bool ignoreExclude = false;
+    char flags[64];
+    cvar_ignoreexcludeflags.GetString(flags, sizeof(flags));
     
     if (flags[0] != '\0')
     {
@@ -625,9 +623,9 @@ Handle:CreateVoteMenuTrie(client)
     return trie;
 }
 
-DisplayVoteTypeMenu(client)
+void DisplayVoteTypeMenu(int client)
 {
-    new Handle:menu = CreateMenu(HandleMV_VoteType, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(HandleMV_VoteType, MenuAction_DisplayItem|MenuAction_Display);
     SetMenuTitle(menu, "AM Vote Type");
     
     AddMenuItem(menu, VTMENU_ITEM_INFO_MAP, "Maps");
@@ -637,33 +635,33 @@ DisplayVoteTypeMenu(client)
     DisplayMenu(menu, client, 0);
 }
 
-public Handle_MenuTranslation(Handle:menu, MenuAction:action, client, param2)
+public int Handle_MenuTranslation(Menu menu, MenuAction action, int client, int param2)
 {
     switch(action)
     {
         case MenuAction_Display:
         {
-            new Handle:panel = Handle:param2;
+            Panel panel = view_as<Panel>(param2);
             
-            decl String:translation[256];
-            GetMenuTitle(menu, translation, sizeof(translation));
+            char translation[256];
+            menu.GetTitle(translation, sizeof(translation));
             
             if (strlen(translation) > 0)
             {
-                decl String:buffer[256];
+                char buffer[256];
                 FormatEx(buffer, sizeof(buffer), "%T", translation, client);
                 
-                SetPanelTitle(panel, buffer);
+                panel.SetTitle(buffer);
             }
         }
         case MenuAction_DisplayItem:
         {
-            decl String:info[256], String:display[256];
-            GetMenuItem(menu, param2, info, sizeof(info), _, display, sizeof(display));
+            char info[256], display[256];
+            menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display));
             
             if (strlen(display) > 0)
             {
-                decl String:buffer[255];
+                char buffer[255];
                 FormatEx(buffer, sizeof(buffer), "%T", display, client);
                     
                 return RedrawMenuItem(buffer);
@@ -673,7 +671,7 @@ public Handle_MenuTranslation(Handle:menu, MenuAction:action, client, param2)
     return 0;
 }
 
-public HandleMV_VoteType(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_VoteType(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -694,14 +692,14 @@ public HandleMV_VoteType(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-DisplayAutoManualMenu(client)
+void DisplayAutoManualMenu(int client)
 {
-    new Handle:menu = CreateAutoManualMenu(HandleMV_AutoManual, "AM Populate Vote");
+    Menu menu = CreateAutoManualMenu(HandleMV_AutoManual, "AM Populate Vote");
     SetMenuExitBackButton(menu, true);
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_AutoManual(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_AutoManual(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -740,17 +738,17 @@ public HandleMV_AutoManual(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-AutoBuildVote(client, bool:value)
+void AutoBuildVote(int client, bool value)
 {
     SetTrieValue(menu_tries[client], "auto", value);
 }
 
-CloseClientVoteTrie(client)
+void CloseClientVoteTrie(int client)
 {
-    new Handle:trie = menu_tries[client];
-    menu_tries[client] = INVALID_HANDLE;
+    StringMap trie = menu_tries[client];
+    menu_tries[client] = null;
     
-    new Handle:mapList;
+    ArrayList mapList;
     GetTrieValue(trie, "maps", mapList);
     ClearHandleArray(mapList);
     CloseHandle(mapList);
@@ -758,14 +756,14 @@ CloseClientVoteTrie(client)
     CloseHandle(trie);
 }
 
-DisplayGroupSelectMenu(client)
+void DisplayGroupSelectMenu(int client)
 {
-    new bool:ignoreLimits;
+    bool ignoreLimits;
     GetTrieValue(menu_tries[client], "ignore_exclusion", ignoreLimits);
     
-    new Handle:menu = CreateGroupMenu(HandleMV_Groups, !ignoreLimits, client);
+    Menu menu = CreateGroupMenu(HandleMV_Groups, !ignoreLimits, client);
     
-    new Handle:voteArray;
+    ArrayList voteArray;
     GetTrieValue(menu_tries[client], "maps", voteArray);
     if (GetArraySize(voteArray) > 1)
     {
@@ -775,7 +773,7 @@ DisplayGroupSelectMenu(client)
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_Groups(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -785,13 +783,13 @@ public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_Select:
         {
-            decl String:group[MAP_LENGTH];
-            GetMenuItem(menu, param2, group, sizeof(group));
+            char group[MAP_LENGTH];
+            menu.GetItem(param2, group, sizeof(group));
             
             if (StrEqual(group, VOTE_POP_STOP_INFO))
             {
-                decl String:flags[64];
-                GetConVarString(cvar_defaultsflags, flags, sizeof(flags));
+                char flags[64];
+                cvar_defaultsflags.GetString(flags, sizeof(flags));
                 
                 if (!ClientHasAdminFlags(param1, flags))
                 {
@@ -828,16 +826,16 @@ public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
     return 0;
 }
 
-DisplayMapSelectMenu(client, const String:group[])
+void DisplayMapSelectMenu(int client, const char[] group)
 {
-    new bool:ignoreLimits;
+    bool ignoreLimits;
     GetTrieValue(menu_tries[client], "ignore_exclusion", ignoreLimits);
     
-    new Handle:newMenu = CreateMapMenu(HandleMV_Maps, group, !ignoreLimits, client);
+    Menu newMenu = CreateMapMenu(HandleMV_Maps, group, !ignoreLimits, client);
     DisplayMenu(newMenu, client, 0);
 }
 
-public HandleMV_Maps(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_Maps(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -847,8 +845,8 @@ public HandleMV_Maps(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_Select:
         {
-            decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
-            GetMenuItem(menu, param2, map, sizeof(map));
+            char map[MAP_LENGTH], group[MAP_LENGTH];
+            menu.GetItem(param2, map, sizeof(map));
             GetTrieString(menu_tries[param1], "group", group, sizeof(group));
             
             AddToVoteList(param1, map, group);
@@ -871,30 +869,31 @@ public HandleMV_Maps(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return 0;
 }
 
-AddToVoteList(client, const String:map[], const String:group[])
+void AddToVoteList(int client, const char[] map, const char[] group)
 {
-    new Handle:mapTrie = CreateMapTrie(map, group);
-    new Handle:mapList;
+    StringMap mapTrie = CreateMapTrie(map, group);
+    ArrayList mapList;
     GetTrieValue(menu_tries[client], "maps", mapList);
-    PushArrayCell(mapList, mapTrie);
+    mapList.Push(mapTrie);
 }
 
-DisplayDefaultsMenu(client)
+void DisplayDefaultsMenu(int client)
 {
-    new Handle:menu = CreateMenu(HandleMV_Defaults, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = CreateMenu(HandleMV_Defaults, MenuAction_DisplayItem|MenuAction_Display);
     SetMenuTitle(menu, "AM Vote Settings");
     
-    AddMenuItem(menu, DMENU_ITEM_INFO_DEFAULTS, "AM-VS Defaults");
-    AddMenuItem(menu, DMENU_ITEM_INFO_MANUAL, "Manually Choose");
+    menu.AddItem(DMENU_ITEM_INFO_DEFAULTS, "AM-VS Defaults");
+    menu.AddItem(DMENU_ITEM_INFO_MANUAL, "Manually Choose");
     
     SetMenuExitBackButton(menu, true);
     
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_Defaults(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_Defaults(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -936,47 +935,47 @@ public HandleMV_Defaults(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-UseVoteDefaults(client)
+void UseVoteDefaults(int client)
 {
-    new Handle:trie = menu_tries[client];
+    StringMap trie = menu_tries[client];
     
     SetTrieValue(trie, "defaults", true);
     
-    SetTrieValue(trie, "scramble",           GetConVarBool(cvar_scramble));
-    SetTrieValue(trie, "extend",             GetConVarBool(cvar_extensions));
-    SetTrieValue(trie, "dont_change",        GetConVarBool(cvar_dontchange));
-    SetTrieValue(trie, "threshold",          GetConVarFloat(cvar_vote_threshold));
-    SetTrieValue(trie, "fail_action",        GetConVarInt(cvar_fail_action));
-    SetTrieValue(trie, "runoff_fail_action", GetConVarInt(cvar_runoff_fail_action));
-    SetTrieValue(trie, "max_runoffs",        GetConVarInt(cvar_runoff));
+    SetTrieValue(trie, "scramble", cvar_scramble.BoolValue);
+    SetTrieValue(trie, "extend", cvar_extensions.BoolValue);
+    SetTrieValue(trie, "dont_change", cvar_dontchange.BoolValue);
+    SetTrieValue(trie, "threshold", cvar_vote_threshold.FloatValue);
+    SetTrieValue(trie, "fail_action", cvar_fail_action.IntValue);
+    SetTrieValue(trie, "runoff_fail_action", cvar_runoff_fail_action.IntValue);
+    SetTrieValue(trie, "max_runoffs", cvar_runoff.IntValue);
     
-    decl String:flags[64];
-    GetConVarString(cvar_flags, flags, sizeof(flags));
+    char flags[64];
+    cvar_flags.GetString(flags, sizeof(flags));
     SetTrieString(trie, "flags", flags);
 }
 
-bool:VoteAutoPopulated(client)
+bool VoteAutoPopulated(int client)
 {
-    new bool:autoPop;
+    bool autoPop;
     GetTrieValue(menu_tries[client], "auto", autoPop);
     
     return autoPop;
 }
 
-DisplayScrambleMenu(client)
+void DisplayScrambleMenu(int client)
 {
-    new Handle:menu = CreateMenu(HandleMV_Scramble, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = CreateMenu(HandleMV_Scramble, MenuAction_DisplayItem|MenuAction_Display);
     SetMenuTitle(menu, "AM Scramble Menu");
     
-    if (GetConVarBool(cvar_scramble))
+    if (cvar_scramble.BoolValue)
     {
-        AddMenuItem(menu, SMENU_ITEM_INFO_NO, "No");
-        AddMenuItem(menu, SMENU_ITEM_INFO_YES, "Default Yes");
+        menu.AddItem(SMENU_ITEM_INFO_NO, "No");
+        menu.AddItem(SMENU_ITEM_INFO_YES, "Default Yes");
     }
     else
     {
-        AddMenuItem(menu, SMENU_ITEM_INFO_NO, "Default No");
-        AddMenuItem(menu, SMENU_ITEM_INFO_YES, "Yes");
+        menu.AddItem(SMENU_ITEM_INFO_NO, "Default No");
+        menu.AddItem(SMENU_ITEM_INFO_YES, "Yes");
     }
     
     SetMenuExitBackButton(menu, true);
@@ -984,7 +983,7 @@ DisplayScrambleMenu(client)
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_Scramble(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_Scramble(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -998,8 +997,8 @@ public HandleMV_Scramble(Handle:menu, MenuAction:action, param1, param2)
         {
             if (param2 == MenuCancel_ExitBack)
             {
-                decl String:flags[64];
-                GetConVarString(cvar_defaultsflags, flags, sizeof(flags));
+                char flags[64];
+                cvar_defaultsflags.GetString(flags, sizeof(flags));
                 
                 if (!ClientHasAdminFlags(param1, flags))
                 {
@@ -1030,26 +1029,26 @@ public HandleMV_Scramble(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-DisplayThresholdMenu(client)
+void DisplayThresholdMenu(int client)
 {
     threshold_trigger[client] = true;
     
-    new Handle:menu = CreateMenu(HandleMV_Threshold, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Threshold Menu");
+    Menu menu = CreateMenu(HandleMV_Threshold, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Threshold Menu");
     
-    AddMenuItem(menu, "", "AM Threshold Menu Message 1", ITEMDRAW_DISABLED);
-    AddMenuItem(menu, "", "AM Threshold Menu Message 2", ITEMDRAW_DISABLED);
-    AddMenuItem(menu, "", "", ITEMDRAW_SPACER);
+    menu.AddItem("", "AM Threshold Menu Message 1", ITEMDRAW_DISABLED);
+    menu.AddItem("", "AM Threshold Menu Message 2", ITEMDRAW_DISABLED);
+    menu.AddItem("", "", ITEMDRAW_SPACER);
     
-    new Float:threshold;
+    float threshold;
     if (GetTrieValue(menu_tries[client], "threshold", threshold))
     {
-        decl String:fmt2[20];
+        char fmt2[20];
         FormatEx(fmt2, sizeof(fmt2), "%.f%% (previously entered)", threshold * 100);
         AddMenuItem(menu, TMENU_ITEM_INFO_PREV, fmt2);
     }
     
-    decl String:fmt[20];
+    char fmt[20];
     FormatEx(fmt, sizeof(fmt), "%.f%% (default)", GetConVarFloat(cvar_vote_threshold) * 100);
     AddMenuItem(menu, TMENU_ITEM_INFO_DEFAULT, fmt);
     
@@ -1058,7 +1057,7 @@ DisplayThresholdMenu(client)
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_Threshold(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -1070,7 +1069,7 @@ public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
         {
             threshold_trigger[param1] = false;
             
-            decl String:info[255];
+            char info[255];
             GetMenuItem(menu, param2, info, sizeof(info));
             
             if (StrEqual(info, TMENU_ITEM_INFO_DEFAULT))
@@ -1101,22 +1100,22 @@ public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_DisplayItem:
         {
-            decl String:info[256], String:disp[256];
-            GetMenuItem(menu, param2, info, sizeof(info), _, disp, sizeof(disp));
+            char info[256], disp[256];
+            menu.GetItem(param2, info, sizeof(info), _, disp, sizeof(disp));
         
             if (StrEqual(info, TMENU_ITEM_INFO_PREV))
             {
-                new Float:threshold;
+                float threshold;
                 GetTrieValue(menu_tries[param1], "threshold", threshold);
             
-                decl String:buffer[255];
+                char buffer[255];
                 FormatEx(buffer, sizeof(buffer), "%.f%% (%T)", threshold * 100, "Previously Entered", param1);
 
                 return RedrawMenuItem(buffer);
             }
             else if (StrEqual(info, TMENU_ITEM_INFO_DEFAULT))
             {
-                decl String:buffer[255];
+                char buffer[255];
                 FormatEx(buffer, sizeof(buffer), "%.f%% (%T)", GetConVarFloat(cvar_vote_threshold) * 100, "Default", param1);
                     
                 return RedrawMenuItem(buffer);
@@ -1130,10 +1129,10 @@ public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
     return 0;
 }
 
-bool:ProcessThresholdText(client, const String:text[])
+bool ProcessThresholdText(int client, const char[] text)
 {
-    decl String:num[20];
-    new Float:percent;
+    char num[20];
+    float percent;
     if (MatchRegex(threshold_regex, text))
     {
         GetRegexSubString(threshold_regex, 1, num, sizeof(num));
@@ -1150,27 +1149,27 @@ bool:ProcessThresholdText(client, const String:text[])
     return false;
 }
 
-CancelThresholdMenu(client)
+void CancelThresholdMenu(int client)
 {
     threshold_menu_trigger[client] = true;
     CancelClientMenu(client);
     threshold_menu_trigger[client] = false;
 }
 
-DisplayFailActionMenu(client)
+void DisplayFailActionMenu(int client)
 {
-    new Handle:menu = CreateMenu(HandleMV_FailAction, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Fail Action Menu");
+    Menu menu = CreateMenu(HandleMV_FailAction, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Fail Action Menu");
     
-    if (GetConVarBool(cvar_fail_action))
+    if (cvar_fail_action.BoolValue)
     {
-        AddMenuItem(menu, FAMENU_ITEM_INFO_NOTHING, "Do Nothing");
-        AddMenuItem(menu, FAMENU_ITEM_INFO_RUNOFF, "Default Perform Runoff Vote");
+        menu.AddItem(FAMENU_ITEM_INFO_NOTHING, "Do Nothing");
+        menu.AddItem(FAMENU_ITEM_INFO_RUNOFF, "Default Perform Runoff Vote");
     }
     else
     {
-        AddMenuItem(menu, FAMENU_ITEM_INFO_NOTHING, "Default Do Nothing");
-        AddMenuItem(menu, FAMENU_ITEM_INFO_RUNOFF, "Perform Runoff Vote");
+        menu.AddItem(FAMENU_ITEM_INFO_NOTHING, "Default Do Nothing");
+        menu.AddItem(FAMENU_ITEM_INFO_RUNOFF, "Perform Runoff Vote");
     }
     
     SetMenuExitBackButton(menu, true);
@@ -1178,7 +1177,7 @@ DisplayFailActionMenu(client)
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_FailAction(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_FailAction(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -1186,7 +1185,7 @@ public HandleMV_FailAction(Handle:menu, MenuAction:action, param1, param2)
         {
             SetTrieValue(menu_tries[param1], "fail_action", param2);
             
-            switch (UMC_VoteFailAction:param2)
+            switch (view_as<UMC_VoteFailAction>(param2))
             {
                 case VoteFailAction_Nothing:
                 {
@@ -1217,27 +1216,27 @@ public HandleMV_FailAction(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-DisplayMaxRunoffMenu(client)
+void DisplayMaxRunoffMenu(int client)
 {
     runoff_trigger[client] = true;
     
-    new Handle:menu = CreateMenu(HandleMV_MaxRunoff, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Max Runoff Menu");
+    Menu menu = CreateMenu(HandleMV_MaxRunoff, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Max Runoff Menu");
     
-    AddMenuItem(menu, "", "AM Max Runoff Menu Message 1", ITEMDRAW_DISABLED);
-    AddMenuItem(menu, "", "AM Max Runoff Menu Message 2", ITEMDRAW_DISABLED);
-    AddMenuItem(menu, "", "AM Max Runoff Menu Message 3", ITEMDRAW_DISABLED);
-    AddMenuItem(menu, "", "", ITEMDRAW_SPACER);
+    menu.AddItem("", "AM Max Runoff Menu Message 1", ITEMDRAW_DISABLED);
+    menu.AddItem("", "AM Max Runoff Menu Message 2", ITEMDRAW_DISABLED);
+    menu.AddItem("", "AM Max Runoff Menu Message 3", ITEMDRAW_DISABLED);
+    menu.AddItem("", "", ITEMDRAW_SPACER);
     
-    new runoffs;
+    int runoffs;
     if (GetTrieValue(menu_tries[client], "max_runoffs", runoffs))
     {
-        decl String:fmt2[20];
+        char fmt2[20];
         FormatEx(fmt2, sizeof(fmt2), "%i (previously entered)", runoffs);
         AddMenuItem(menu, MRMENU_ITEM_INFO_PREV, fmt2);
     }
     
-    decl String:fmt[20];
+    char fmt[20];
     FormatEx(fmt, sizeof(fmt), "%i (default)", GetConVarInt(cvar_runoff_max));
     AddMenuItem(menu, MRMENU_ITEM_INFO_DEFAULT, fmt);
     
@@ -1246,7 +1245,7 @@ DisplayMaxRunoffMenu(client)
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_MaxRunoff(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_MaxRunoff(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -1258,12 +1257,12 @@ public HandleMV_MaxRunoff(Handle:menu, MenuAction:action, param1, param2)
         {
             runoff_trigger[param1] = false;
             
-            decl String:info[255];
+            char info[255];
             GetMenuItem(menu, param2, info, sizeof(info));
             
             if (StrEqual(info, MRMENU_ITEM_INFO_DEFAULT))
             {
-                SetTrieValue(menu_tries[param1], "max_runoffs", GetConVarInt(cvar_runoff_max));
+                SetTrieValue(menu_tries[param1], "max_runoffs", cvar_runoff_max.IntValue);
             }
             //TODO:
             //I don't think I need to handle the case where we reselect the previously entered amount,
@@ -1293,23 +1292,23 @@ public HandleMV_MaxRunoff(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_DisplayItem:
         {
-            decl String:info[256];
-            GetMenuItem(menu, param2, info, sizeof(info));
+            char info[256];
+            menu.GetItem(param2, info, sizeof(info));
         
             if (StrEqual(info, MRMENU_ITEM_INFO_PREV))
             {
-                new maxrunoffs;
+                int maxrunoffs;
                 GetTrieValue(menu_tries[param1], "max_runoffs", maxrunoffs);
             
-                decl String:buffer[255];
+                char buffer[255];
                 FormatEx(buffer, sizeof(buffer), "%i (%T)", maxrunoffs, "Previously Entered", param1);
                     
                 return RedrawMenuItem(buffer);
             }
             else if (StrEqual(info, MRMENU_ITEM_INFO_DEFAULT))
             {
-                decl String:buffer[255];
-                FormatEx(buffer, sizeof(buffer), "%i (%T)", GetConVarInt(cvar_runoff_max), "Default", param1);
+                char buffer[255];
+                FormatEx(buffer, sizeof(buffer), "%i (%T)", cvar_runoff_max.IntValue, "Default", param1);
                     
                 return RedrawMenuItem(buffer);
             }
@@ -1322,10 +1321,10 @@ public HandleMV_MaxRunoff(Handle:menu, MenuAction:action, param1, param2)
     return 0;
 }
 
-bool:ProcessRunoffText(client, const String:text[])
+bool ProcessRunoffText(int client, const char[] text)
 {
-    decl String:num[20];
-    new amt;
+    char num[20];
+    int amt;
     if (MatchRegex(runoff_regex, text))
     {
         GetRegexSubString(runoff_regex, 1, num, sizeof(num));
@@ -1342,27 +1341,27 @@ bool:ProcessRunoffText(client, const String:text[])
     return false;
 }
 
-CancelRunoffMenu(client)
+void CancelRunoffMenu(int client)
 {
     runoff_menu_trigger[client] = true;
     CancelClientMenu(client);
     runoff_menu_trigger[client] = false;        
 }
 
-DisplayRunoffFailActionMenu(client)
+void DisplayRunoffFailActionMenu(int client)
 {
-    new Handle:menu = CreateMenu(HandleMV_RunoffFailAction, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Runoff Fail Action Menu");
+    Menu menu = CreateMenu(HandleMV_RunoffFailAction, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Runoff Fail Action Menu");
     
-    if (GetConVarBool(cvar_runoff_fail_action))
+    if (cvar_runoff_fail_action.BoolValue)
     {
-        AddMenuItem(menu, RFAMENU_ITEM_INFO_NOTHING, "Do Nothing");
-        AddMenuItem(menu, RFAMENU_ITEM_INFO_ACCEPT, "Default Accept Winner");
+        menu.AddItem(RFAMENU_ITEM_INFO_NOTHING, "Do Nothing");
+        menu.AddItem(RFAMENU_ITEM_INFO_ACCEPT, "Default Accept Winner");
     }
     else
     {
-        AddMenuItem(menu, RFAMENU_ITEM_INFO_NOTHING, "Default Do Nothing");
-        AddMenuItem(menu, RFAMENU_ITEM_INFO_ACCEPT, "Accept Winner");
+        menu.AddItem(RFAMENU_ITEM_INFO_NOTHING, "Default Do Nothing");
+        menu.AddItem(RFAMENU_ITEM_INFO_ACCEPT, "Accept Winner");
     }
     
     SetMenuExitBackButton(menu, true);
@@ -1370,7 +1369,7 @@ DisplayRunoffFailActionMenu(client)
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_RunoffFailAction(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_RunoffFailAction(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -1399,27 +1398,27 @@ public HandleMV_RunoffFailAction(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-DisplayExtendMenu(client)
+void DisplayExtendMenu(int client)
 {
-    new Handle:menu = CreateMenu(HandleMV_Extend, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Extend Menu");
+    Menu menu = CreateMenu(HandleMV_Extend, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Extend Menu");
     
-    if (GetConVarBool(cvar_extensions))
+    if (cvar_extensions.BoolValue)
     {
-        AddMenuItem(menu, EMENU_ITEM_INFO_NO, "No");
-        AddMenuItem(menu, EMENU_ITEM_INFO_YES, "Default Yes");
+        menu.AddItem(EMENU_ITEM_INFO_NO, "No");
+        menu.AddItem(EMENU_ITEM_INFO_YES, "Default Yes");
     }
     else
     {
-        AddMenuItem(menu, EMENU_ITEM_INFO_NO, "Default No");
-        AddMenuItem(menu, EMENU_ITEM_INFO_YES, "Yes");
+        menu.AddItem(EMENU_ITEM_INFO_NO, "Default No");
+        menu.AddItem(EMENU_ITEM_INFO_YES, "Yes");
     }
     
     SetMenuExitBackButton(menu, true);
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_Extend(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_Extend(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -1455,28 +1454,28 @@ public HandleMV_Extend(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-bool:RunoffIsEnabled(client)
+bool RunoffIsEnabled(int client)
 {
-    new UMC_VoteFailAction:failAction;
+    UMC_VoteFailAction failAction;
     GetTrieValue(menu_tries[client], "fail_action", failAction);
 
     return failAction == VoteFailAction_Runoff;
 }
 
-DisplayDontChangeMenu(client)
+void DisplayDontChangeMenu(int client)
 {
-    new Handle:menu = CreateMenu(HandleMV_DontChange, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Don't Change Menu");
+    Menu menu = CreateMenu(HandleMV_DontChange, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Don't Change Menu");
     
-    if (GetConVarBool(cvar_dontchange))
+    if (cvar_dontchange.BoolValue)
     {
-        AddMenuItem(menu, DCMENU_ITEM_INFO_NO, "No");
-        AddMenuItem(menu, DCMENU_ITEM_INFO_YES, "Default Yes");
+        menu.AddItem(DCMENU_ITEM_INFO_NO, "No");
+        menu.AddItem(DCMENU_ITEM_INFO_YES, "Default Yes");
     }
     else
     {
-        AddMenuItem(menu, DCMENU_ITEM_INFO_NO, "Default No");
-        AddMenuItem(menu, DCMENU_ITEM_INFO_YES, "Yes");
+        menu.AddItem(DCMENU_ITEM_INFO_NO, "Default No");
+        menu.AddItem(DCMENU_ITEM_INFO_YES, "Yes");
     }
     
     SetMenuExitBackButton(menu, true);
@@ -1484,17 +1483,17 @@ DisplayDontChangeMenu(client)
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_DontChange(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_DontChange(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
         case MenuAction_Select:
         {
-            new Handle:trie = menu_tries[param1];
+            StringMap trie = menu_tries[param1];
             SetTrieValue(trie, "dont_change", param2);
             
-            decl String:flags[64];
-            GetConVarString(cvar_flags, flags, sizeof(flags));
+            char flags[64];
+            cvar_flags.GetString(flags, sizeof(flags));
             
             if (flags[0] != '\0')
             {
@@ -1526,43 +1525,43 @@ public HandleMV_DontChange(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-SkipAdminFlags(client)
+void SkipAdminFlags(int client)
 {
-    new Handle:trie = menu_tries[client];
+    StringMap trie = menu_tries[client];
     SetTrieString(trie, "flags", "");
     SetTrieValue(trie, "skip_admin", true);
 }
 
-bool:SkippingAdminFlags(client)
+bool SkippingAdminFlags(int client)
 {
-    new bool:result;
+    bool result;
     return GetTrieValue(menu_tries[client], "skip_admin", result) && result;
 }
 
-DisplayAdminFlagsMenu(client)
+void DisplayAdminFlagsMenu(int client)
 {
-    new Handle:menu = CreateMenu(HandleMV_AdminFlags, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Admin Flag Menu");
+    Menu menu = CreateMenu(HandleMV_AdminFlags, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Admin Flag Menu");
     
-    decl String:flags[64];
-    GetConVarString(cvar_flags, flags, sizeof(flags));
+    char flags[64];
+    cvar_flags.GetString(flags, sizeof(flags));
     
-    AddMenuItem(menu, "", "Everyone");
-    AddMenuItem(menu, flags, "Admins Only");
+    menu.AddItem("", "Everyone");
+    menu.AddItem(flags, "Admins Only");
     
     SetMenuExitBackButton(menu, true);
     
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_AdminFlags(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_AdminFlags(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
         case MenuAction_Select:
         {
-            decl String:info[64];
-            GetMenuItem(menu, param2, info, sizeof(info));
+            char info[64];
+            menu.GetItem(param2, info, sizeof(info));
             
             SetTrieString(menu_tries[param1], "flags", info);
             
@@ -1587,36 +1586,36 @@ public HandleMV_AdminFlags(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-DisplayChangeWhenMenu(client)
+void DisplayChangeWhenMenu(int client)
 {
-    new Handle:menu = CreateMenu(HandleMV_When, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Change When Menu");
+    Menu menu = CreateMenu(HandleMV_When, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Change When Menu");
     
     SetMenuExitBackButton(menu, true);
 
-    decl String:info1[2];
+    char info1[2];
     FormatEx(info1, sizeof(info1), "%i", ChangeMapTime_Now);
-    AddMenuItem(menu, info1, "Now");
+    menu.AddItem(info1, "Now");
     
-    decl String:info2[2];
+    char info2[2];
     FormatEx(info2, sizeof(info2), "%i", ChangeMapTime_RoundEnd);
-    AddMenuItem(menu, info2, "End of Round");
+    menu.AddItem(info2, "End of Round");
     
-    decl String:info3[2];
+    char info3[2];
     FormatEx(info3, sizeof(info3), "%i", ChangeMapTime_MapEnd);
-    AddMenuItem(menu, info3, "End of Map");
+    menu.AddItem(info3, "End of Map");
     
     DisplayMenu(menu, client, 0);
 }
 
-public HandleMV_When(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMV_When(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
         case MenuAction_Select:
         {
-            decl String:info[2];
-            GetMenuItem(menu, param2, info, sizeof(info));
+            char info[2];
+            menu.GetItem(param2, info, sizeof(info));
             
             SetTrieValue(menu_tries[param1], "when", StringToInt(info));
             
@@ -1628,8 +1627,8 @@ public HandleMV_When(Handle:menu, MenuAction:action, param1, param2)
             {
                 if (UsingDefaults(param1))
                 {
-                    decl String:flags[64];
-                    GetConVarString(cvar_defaultsflags, flags, sizeof(flags));
+                    char flags[64];
+                    cvar_defaultsflags.GetString(flags, sizeof(flags));
                     
                     if (!ClientHasAdminFlags(param1, flags))
                     {
@@ -1672,31 +1671,35 @@ public HandleMV_When(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-bool:UsingDefaults(client)
+bool UsingDefaults(int client)
 {
-    new bool:defaults;
+    bool defaults;
     GetTrieValue(menu_tries[client], "defaults", defaults);
     
     return defaults;
 }
 
-DoMapVote(client)
+void DoMapVote(int client)
 {
-    new Handle:trie = menu_tries[client];
-    new Handle:selectedMaps;
+    StringMap trie = menu_tries[client];
+    ArrayList selectedMaps;
     
-    new UMC_VoteType:type, bool:scramble, bool:extend, bool:dontChange, Float:threshold,
-        UMC_ChangeMapTime:when, UMC_VoteFailAction:failAction, runoffs,
-        UMC_RunoffFailAction:runoffFailAction;
+    UMC_VoteType type;
+    bool scramble, extend, dontChange;
+    float threshold;
+    UMC_ChangeMapTime when;
+    UMC_VoteFailAction failAction;
+    int runoffs;
+    UMC_RunoffFailAction runoffFailAction;
         
-    decl String:flags[64];
+    char flags[64];
     
-    new bool:ignoreExclusion;
+    bool ignoreExclusion;
         
     GetTrieValue(trie, "maps", selectedMaps);
 
-    new bool:autoPop = VoteAutoPopulated(client);
-    new Handle:mapcycle = autoPop ? map_kv : CreateVoteKV(selectedMaps);
+    bool autoPop = VoteAutoPopulated(client);
+    KeyValues mapcycle = autoPop ? map_kv : CreateVoteKV(selectedMaps);
 
     GetTrieValue(trie, "type",               type);
     GetTrieValue(trie, "scramble",           scramble);
@@ -1710,8 +1713,8 @@ DoMapVote(client)
     
     GetTrieString(trie, "flags", flags, sizeof(flags));
     
-    new clients[MAXPLAYERS+1];
-    new numClients;
+    int clients[MAXPLAYERS+1];
+    int numClients;
     GetClientsWithFlags(flags, clients, sizeof(clients), numClients);
     
     GetTrieValue(trie, "ignore_exclusion", ignoreExclusion);
@@ -1734,32 +1737,31 @@ DoMapVote(client)
     }
 }
 
-Handle:CreateVoteKV(Handle:maps)
+KeyValues CreateVoteKV(ArrayList maps)
 {
-    new Handle:result = CreateKeyValues("umc_rotation");
-    KvRewind(map_kv);
+    KeyValues result = new KeyValues("umc_rotation");
+    map_kv.Rewind();
     KvCopySubkeys(map_kv, result);
     
-    if (!KvGotoFirstSubKey(result))
+    if (!result.GotoFirstSubKey())
     {
         return result;
     }
     
-    decl String:group[MAP_LENGTH];
-    decl String:map[MAP_LENGTH];
-    new bool:goBackMap;
-    new bool:goBackGroup = true;
-    new groupMapCount;
+    char group[MAP_LENGTH], map[MAP_LENGTH];
+    bool goBackMap;
+    bool goBackGroup = true;
+    int groupMapCount;
     for ( ; ; )
     {
         groupMapCount = 0;
         goBackMap = true;
     
-        KvGetSectionName(result, group, sizeof(group));
+        result.GetSectionName(group, sizeof(group));
         
-        if (!KvGotoFirstSubKey(result))
+        if (!result.GotoFirstSubKey())
         {
-            if (!KvGotoNextKey(result))
+            if (!result.GotoNextKey())
             {
                 break;
             }
@@ -1768,11 +1770,11 @@ Handle:CreateVoteKV(Handle:maps)
  
         for ( ; ; )
         {
-            KvGetSectionName(result, map, sizeof(map));
+            result.GetSectionName(map, sizeof(map));
             
             if (!FindMapInList(maps, map, group))
             {
-                if (KvDeleteThis(result) == -1)
+                if (result.DeleteThis() == -1)
                 {
                     goBackMap = false;
                     break;
@@ -1787,7 +1789,7 @@ Handle:CreateVoteKV(Handle:maps)
                 groupMapCount++;
             }
             
-            if (!KvGotoNextKey(result))
+            if (!result.GotoNextKey())
             {
                 break;
             }
@@ -1795,12 +1797,12 @@ Handle:CreateVoteKV(Handle:maps)
         
         if (goBackMap)
         {
-            KvGoBack(result);
+            result.GoBack();
         }
         
-        if (!KvGotoFirstSubKey(result))
+        if (!result.GotoFirstSubKey())
         {
-            if (KvDeleteThis(result) == -1)
+            if (result.DeleteThis() == -1)
             {
                 goBackGroup = false;
                 break;
@@ -1812,11 +1814,11 @@ Handle:CreateVoteKV(Handle:maps)
         }
         else
         {
-            KvGoBack(result);
-            KvSetNum(result, "maps_invote", groupMapCount);
+            result.GoBack();
+            result.SetNum("maps_invote", groupMapCount);
         }
             
-        if (!KvGotoNextKey(result))
+        if (!result.GotoNextKey())
         {
             break;
         }
@@ -1824,18 +1826,18 @@ Handle:CreateVoteKV(Handle:maps)
     
     if (goBackGroup)
     {
-        KvGoBack(result);
+        result.GoBack();
     }
     
     return result;
 }
 
-bool:FindMapInList(Handle:maps, const String:map[], const String:group[])
+bool FindMapInList(ArrayList maps, const char[] map, const char[] group)
 {
-    decl String:gBuffer[MAP_LENGTH], String:mBuffer[MAP_LENGTH];
-    new Handle:trie;
-    new size = GetArraySize(maps);
-    for (new i = 0; i < size; i++)
+    char gBuffer[MAP_LENGTH], mBuffer[MAP_LENGTH];
+    StringMap trie;
+    int size = GetArraySize(maps);
+    for (int i = 0; i < size; i++)
     {
         trie = GetArrayCell(maps, i);
         GetTrieString(trie, MAP_TRIE_MAP_KEY, mBuffer, sizeof(mBuffer));
@@ -1851,19 +1853,19 @@ bool:FindMapInList(Handle:maps, const String:map[], const String:group[])
     return false;
 }
 
-CreateAMNextMap(client)
+void CreateAMNextMap(int client)
 {
-    new Handle:menu = CreateAutoManualMenu(HandleAM_NextMap, "Select A Map");
+    Menu menu = CreateAutoManualMenu(HandleAM_NextMap, "Select A Map");
     DisplayMenu(menu, client, 0);
 }
 
-CreateAMChangeMap(client)
+void CreateAMChangeMap(int client)
 {
-    new Handle:menu = CreateAutoManualMenu(HandleAM_ChangeMap, "Select A Map");
+    Menu menu = CreateAutoManualMenu(HandleAM_ChangeMap, "Select A Map");
     DisplayMenu(menu, client, 0);
 }
 
-public HandleAM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
+public int HandleAM_ChangeMap(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -1889,13 +1891,13 @@ public HandleAM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-ManualChangeMap(client)
+void ManualChangeMap(int client)
 {
-    menu_tries[client] = CreateTrie();
+    menu_tries[client] = new StringMap();
     
-    new bool:ignoreExclude = false;
-    decl String:flags[64];
-    GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+    bool ignoreExclude = false;
+    char flags[64];
+    cvar_ignoreexcludeflags.GetString(flags, sizeof(flags));
     
     if (flags[0] != '\0')
     {
@@ -1909,11 +1911,11 @@ ManualChangeMap(client)
         ignoreExclude = true;
     }
     
-    new Handle:menu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, client);
+    Menu menu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, client);
     DisplayMenu(menu, client, 0);
 }
 
-public HandleGM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
+public int HandleGM_ChangeMap(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -1923,14 +1925,14 @@ public HandleGM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_Select:
         {
-            decl String:group[MAP_LENGTH];
-            GetMenuItem(menu, param2, group, sizeof(group));
+            char group[MAP_LENGTH];
+            menu.GetItem(param2, group, sizeof(group));
             
             SetTrieString(menu_tries[param1], "group", group);
             
-            new bool:ignoreExclude = false;
-            decl String:flags[64];
-            GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+            bool ignoreExclude = false;
+            char flags[64];
+            cvar_ignoreexcludeflags.GetString(flags, sizeof(flags));
             
             if (flags[0] != '\0')
             {
@@ -1944,7 +1946,7 @@ public HandleGM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
                 ignoreExclude = true;
             }
             
-            new Handle:newMenu = CreateMapMenu(HandleMM_ChangeMap, group, !ignoreExclude, param1);
+            Menu newMenu = CreateMapMenu(HandleMM_ChangeMap, group, !ignoreExclude, param1);
             DisplayMenu(newMenu, param1, 0);
         }
         case MenuAction_Cancel:
@@ -1963,9 +1965,10 @@ public HandleGM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return 0;
 }
 
-public HandleMM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMM_ChangeMap(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -1975,8 +1978,8 @@ public HandleMM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_Select:
         {
-            decl String:map[MAP_LENGTH];
-            GetMenuItem(menu, param2, map, sizeof(map));
+            char map[MAP_LENGTH];
+            menu.GetItem(param2, map, sizeof(map));
             
             SetTrieString(menu_tries[param1], "map", map);
             
@@ -1986,9 +1989,9 @@ public HandleMM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
         {
             if (param2 == MenuCancel_ExitBack)
             {
-                new bool:ignoreExclude = false;
-                decl String:flags[64];
-                GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+                bool ignoreExclude = false;
+                char flags[64];
+                cvar_ignoreexcludeflags.GetString(flags, sizeof(flags));
                 
                 if (flags[0] != '\0')
                 {
@@ -2002,7 +2005,7 @@ public HandleMM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
                     ignoreExclude = true;
                 }
             
-                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
+                Menu newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
                 DisplayMenu(newMenu, param1, 0);
             }
             else
@@ -2015,34 +2018,35 @@ public HandleMM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return 0;
 }
 
-ManualChangeMapWhen(client)
+void ManualChangeMapWhen(int client)
 {
-    new Handle:menu = CreateMenu(Handle_ManualChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Change When Menu");
+    Menu menu = CreateMenu(Handle_ManualChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Change When Menu");
     
     SetMenuExitBackButton(menu, true);
 
-    decl String:info1[2];
+    char info1[2];
     FormatEx(info1, sizeof(info1), "%i", ChangeMapTime_Now);
     AddMenuItem(menu, info1, "Now");
     
-    decl String:info2[2];
+    char info2[2];
     FormatEx(info2, sizeof(info2), "%i", ChangeMapTime_RoundEnd);
     AddMenuItem(menu, info2, "End of Round");
     
     DisplayMenu(menu, client, 0);
 }
 
-public Handle_ManualChangeWhenMenu(Handle:menu, MenuAction:action, param1, param2)
+public int Handle_ManualChangeWhenMenu(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
         case MenuAction_Select:
         {
-            decl String:info[2];
-            GetMenuItem(menu, param2, info, sizeof(info));
+            char info[2];
+            menu.GetItem(param2, info, sizeof(info));
             
             SetTrieValue(menu_tries[param1], "when", StringToInt(info));
             DoManualMapChange(param1);
@@ -2051,9 +2055,9 @@ public Handle_ManualChangeWhenMenu(Handle:menu, MenuAction:action, param1, param
         {
             if (param2 == MenuCancel_ExitBack)
             {
-                new bool:ignoreExclude = false;
-                decl String:flags[64];
-                GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+                bool ignoreExclude = false;
+                char flags[64];
+                cvar_ignoreexcludeflags.GetString(flags, sizeof(flags));
                 
                 if (flags[0] != '\0')
                 {
@@ -2067,7 +2071,7 @@ public Handle_ManualChangeWhenMenu(Handle:menu, MenuAction:action, param1, param
                     ignoreExclude = true;
                 }
             
-                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
+                Menu newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
                 DisplayMenu(newMenu, param1, 0);
             }
             else
@@ -2083,12 +2087,12 @@ public Handle_ManualChangeWhenMenu(Handle:menu, MenuAction:action, param1, param
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-DoManualMapChange(client)
+void DoManualMapChange(int client)
 {
-    new Handle:trie = menu_tries[client];
+    StringMap trie = menu_tries[client];
     
-    decl String:nextMap[MAP_LENGTH], String:nextGroup[MAP_LENGTH];
-    new when;
+    char nextMap[MAP_LENGTH], nextGroup[MAP_LENGTH];
+    int when;
     
     GetTrieString(trie, "map", nextMap, sizeof(nextMap));
     GetTrieString(trie, "group", nextGroup, sizeof(nextGroup));
@@ -2096,37 +2100,37 @@ DoManualMapChange(client)
     
     CloseHandle(trie);
     
-    DoMapChange(client, UMC_ChangeMapTime:when, nextMap, nextGroup);
+    DoMapChange(client, view_as<UMC_ChangeMapTime>(when), nextMap, nextGroup);
 }
 
-AutoChangeMap(client)
+void AutoChangeMap(int client)
 {
-    new Handle:menu = CreateMenu(Handle_AutoChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = CreateMenu(Handle_AutoChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
     SetMenuTitle(menu, "AM Change When Menu");
     
     SetMenuExitBackButton(menu, true);
 
-    decl String:info1[2];
+    char info1[2];
     FormatEx(info1, sizeof(info1), "%i", ChangeMapTime_Now);
     AddMenuItem(menu, info1, "Now");
     
-    decl String:info2[2];
+    char info2[2];
     FormatEx(info2, sizeof(info2), "%i", ChangeMapTime_RoundEnd);
     AddMenuItem(menu, info2, "End of Round");
     
     DisplayMenu(menu, client, 0);
 }
 
-public Handle_AutoChangeWhenMenu(Handle:menu, MenuAction:action, param1, param2)
+public int Handle_AutoChangeWhenMenu(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
         case MenuAction_Select:
         {
-            decl String:info[2];
-            GetMenuItem(menu, param2, info, sizeof(info));
+            char info[2];
+            menu.GetItem(param2, info, sizeof(info));
             
-            DoAutoMapChange(param1, UMC_ChangeMapTime:StringToInt(info));
+            DoAutoMapChange(param1, view_as<UMC_ChangeMapTime>(StringToInt(info)));
         }
         case MenuAction_Cancel:
         {
@@ -2143,9 +2147,9 @@ public Handle_AutoChangeWhenMenu(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-DoAutoMapChange(client, UMC_ChangeMapTime:when)
+void DoAutoMapChange(int client, UMC_ChangeMapTime when)
 {
-    decl String:nextMap[MAP_LENGTH], String:nextGroup[MAP_LENGTH];
+    char nextMap[MAP_LENGTH], nextGroup[MAP_LENGTH];
     if (UMC_GetRandomMap(map_kv, umc_mapcycle, INVALID_GROUP, nextMap, sizeof(nextMap), nextGroup, sizeof(nextGroup), false, true))
     {
         DoMapChange(client, when, nextMap, nextGroup);
@@ -2156,13 +2160,13 @@ DoAutoMapChange(client, UMC_ChangeMapTime:when)
     }
 }
 
-DoMapChange(client, UMC_ChangeMapTime:when, const String:map[], const String:group[])
+void DoMapChange(int client, UMC_ChangeMapTime when, const char[] map, const char[] group)
 {
     UMC_SetNextMap(map_kv, map, group, when);
     LogUMCMessage("%L set the next map to %s from group %s.", client, map, group);
 }
 
-public HandleAM_NextMap(Handle:menu, MenuAction:action, param1, param2)
+public int HandleAM_NextMap(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -2189,13 +2193,13 @@ public HandleAM_NextMap(Handle:menu, MenuAction:action, param1, param2)
     return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
-ManualNextMap(client)
+void ManualNextMap(int client)
 {
-    menu_tries[client] = CreateTrie();
+    menu_tries[client] = new StringMap();
     
-    new bool:ignoreExclude = false;
-    decl String:flags[64];
-    GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+    bool ignoreExclude = false;
+    char flags[64];
+    cvar_ignoreexcludeflags.GetString(flags, sizeof(flags));
     
     if (flags[0] != '\0')
     {
@@ -2209,11 +2213,11 @@ ManualNextMap(client)
         ignoreExclude = true;
     }
     
-    new Handle:menu = CreateGroupMenu(HandleGM_NextMap, !ignoreExclude, client);
+    Menu menu = CreateGroupMenu(HandleGM_NextMap, !ignoreExclude, client);
     DisplayMenu(menu, client, 0);
 }
 
-public HandleGM_NextMap(Handle:menu, MenuAction:action, param1, param2)
+public int HandleGM_NextMap(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -2223,14 +2227,14 @@ public HandleGM_NextMap(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_Select:
         {
-            decl String:group[MAP_LENGTH];
-            GetMenuItem(menu, param2, group, sizeof(group));
+            char group[MAP_LENGTH];
+            menu.GetItem(param2, group, sizeof(group));
             
             SetTrieString(menu_tries[param1], "group", group);
             
-            new bool:ignoreExclude = false;
-            decl String:flags[64];
-            GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+            bool ignoreExclude = false;
+            char flags[64];
+            cvar_ignoreexcludeflags.GetString(flags, sizeof(flags));
             
             if (flags[0] != '\0')
             {
@@ -2244,7 +2248,7 @@ public HandleGM_NextMap(Handle:menu, MenuAction:action, param1, param2)
                 ignoreExclude = true;
             }
             
-            new Handle:newMenu = CreateMapMenu(HandleMM_NextMap, group, !ignoreExclude, param1);
+            Menu newMenu = CreateMapMenu(HandleMM_NextMap, group, !ignoreExclude, param1);
             DisplayMenu(newMenu, param1, 0);
         }
         case MenuAction_Cancel:
@@ -2263,9 +2267,10 @@ public HandleGM_NextMap(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return 0;
 }
 
-public HandleMM_NextMap(Handle:menu, MenuAction:action, param1, param2)
+public int HandleMM_NextMap(Menu menu, MenuAction action, int param1, int param2)
 {
     switch (action)
     {
@@ -2275,8 +2280,8 @@ public HandleMM_NextMap(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_Select:
         {
-            decl String:map[MAP_LENGTH];
-            GetMenuItem(menu, param2, map, sizeof(map));
+            char map[MAP_LENGTH];
+            menu.GetItem(param2, map, sizeof(map));
             
             SetTrieString(menu_tries[param1], "map", map);
             
@@ -2286,9 +2291,9 @@ public HandleMM_NextMap(Handle:menu, MenuAction:action, param1, param2)
         {
             if (param2 == MenuCancel_ExitBack)
             {
-                new bool:ignoreExclude = false;
-                decl String:flags[64];
-                GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+                bool ignoreExclude = false;
+                char flags[64];
+                cvar_ignoreexcludeflags.GetString(flags, sizeof(flags));
                 
                 if (flags[0] != '\0')
                 {
@@ -2302,7 +2307,7 @@ public HandleMM_NextMap(Handle:menu, MenuAction:action, param1, param2)
                     ignoreExclude = true;
                 }
             
-                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
+                Menu newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
                 DisplayMenu(newMenu, param1, 0);
             }
             else
@@ -2315,13 +2320,14 @@ public HandleMM_NextMap(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return 0;
 }
 
-DoManualNextMap(client)
+void DoManualNextMap(int client)
 {
-    new Handle:trie = menu_tries[client];
+    StringMap trie = menu_tries[client];
     
-    decl String:nextMap[MAP_LENGTH], String:nextGroup[MAP_LENGTH];
+    char nextMap[MAP_LENGTH], nextGroup[MAP_LENGTH];
     GetTrieString(trie, "map", nextMap, sizeof(nextMap));
     GetTrieString(trie, "group", nextGroup, sizeof(nextGroup));
     
@@ -2330,9 +2336,9 @@ DoManualNextMap(client)
     DoMapChange(client, ChangeMapTime_MapEnd, nextMap, nextGroup);
 }
 
-AutoNextMap(client)
+void AutoNextMap(int client)
 {
-    decl String:nextMap[MAP_LENGTH], String:nextGroup[MAP_LENGTH];
+    char nextMap[MAP_LENGTH], nextGroup[MAP_LENGTH];
     if (UMC_GetRandomMap(map_kv, umc_mapcycle, INVALID_GROUP, nextMap, sizeof(nextMap), nextGroup, sizeof(nextGroup), false, true))
     {
         DoMapChange(client, ChangeMapTime_MapEnd, nextMap, nextGroup);
@@ -2343,123 +2349,123 @@ AutoNextMap(client)
     }
 }
 
-stock Handle:FetchGroupNames(Handle:kv)
+stock ArrayList FetchGroupNames(KeyValues kv)
 {
-    new Handle:result = CreateArray(ByteCountToCells(MAP_LENGTH));
-    if (!KvGotoFirstSubKey(kv))
+    ArrayList result = new ArrayList(ByteCountToCells(MAP_LENGTH));
+    if (!kv.GotoFirstSubKey())
     {
         return result;
     }
     
-    decl String:group[MAP_LENGTH];
+    char group[MAP_LENGTH];
     
     do
     {
-        KvGetSectionName(kv, group, sizeof(group));
-        PushArrayString(result, group);
+        kv.GetSectionName(group, sizeof(group));
+        result.PushString(group);
     }
-    while (KvGotoNextKey(kv));
+    while (kv.GotoNextKey());
     
-    KvGoBack(kv);
+    kv.GoBack();
     
     return result;
 }
 
-stock Handle:FetchMapsFromGroup(Handle:kv, const String:group[])
+stock ArrayList FetchMapsFromGroup(KeyValues kv, const char[] group)
 {
-    new Handle:mapcycle = CreateKeyValues("umc_rotation");
+    KeyValues mapcycle = new KeyValues("umc_rotation");
     KvCopySubkeys(kv, mapcycle);
 
     if (!KvJumpToKey(kv, group))
     {
         LogError("Cannot jump to map group '%s'", group);
         CloseHandle(mapcycle);
-        return INVALID_HANDLE;
+        return null;
     }
     
-    new Handle:result = CreateArray();
+    ArrayList result = new ArrayList();
     
-    if (!KvGotoFirstSubKey(kv))
+    if (!kv.GotoFirstSubKey())
     {
         CloseHandle(mapcycle);
         return result;
     }
         
-    decl String:map[MAP_LENGTH];
-    new Handle:trie;
+    char map[MAP_LENGTH];
+    StringMap trie;
     
     do
     {
-        KvGetSectionName(kv, map, sizeof(map));
-        trie = CreateTrie();
+        kv.GetSectionName(map, sizeof(map));
+        trie = new StringMap();
         SetTrieString(trie, MAP_TRIE_MAP_KEY, map);
         SetTrieString(trie, MAP_TRIE_GROUP_KEY, group);
         SetTrieValue(trie, "excluded", !UMC_IsMapValid(mapcycle, map, group, false, true));
-        PushArrayCell(result, trie);
+        result.Push(trie);
     }
-    while (KvGotoNextKey(kv));
+    while (kv.GotoNextKey());
     
-    KvGoBack(kv);
-    KvGoBack(kv);
+    kv.GoBack();
+    kv.GoBack();
     
     return result;
 }
 
-FilterGroupArrayForAdmin(Handle:groups, admin)
+void FilterGroupArrayForAdmin(ArrayList groups, int admin)
 {
-    new userflags = GetUserFlagBits(admin);
+    int userflags = GetUserFlagBits(admin);
     
-    decl String:group[MAP_LENGTH];
-    decl String:gFlags[64], String:mFlags[64];
-    new size = GetArraySize(groups);
-    for (new i = 0; i < size; i++)
+    char group[MAP_LENGTH];
+    char gFlags[64], mFlags[64];
+    int size = GetArraySize(groups);
+    for (int i = 0; i < size; i++)
     {
-        new bool:excluded = true;
+        bool excluded = true;
         
-        GetArrayString(groups, i, group, sizeof(group));
-        KvJumpToKey(map_kv, group);
-        KvGetString(map_kv, ADMINMENU_ADMINFLAG_KEY, gFlags, sizeof(gFlags), "");
+        groups.GetString(i, group, sizeof(group));
+        map_kv.JumpToKey(group);
+        map_kv.GetString(ADMINMENU_ADMINFLAG_KEY, gFlags, sizeof(gFlags), "");
         
-        if (KvGotoFirstSubKey(map_kv))
+        if (map_kv.GotoFirstSubKey())
         {
             do
             {
-                KvGetString(map_kv, ADMINMENU_ADMINFLAG_KEY, mFlags, sizeof(mFlags), gFlags);
+                map_kv.GetString(ADMINMENU_ADMINFLAG_KEY, mFlags, sizeof(mFlags), gFlags);
                 if (mFlags[0] == '\0' || (userflags & ReadFlagString(mFlags)))
                 {
                     excluded = false;
                     break;
                 }
             }
-            while (KvGotoNextKey(map_kv));
+            while (map_kv.GotoNextKey());
             
-            KvGoBack(map_kv);
+            map_kv.GoBack();
         }
         
         if (excluded)
         {
-            RemoveFromArray(groups, i);
+            groups.Erase(i);
             size--;
             i--;
         }
         
-        KvGoBack(map_kv);
+        map_kv.GoBack();
     }
 }
 
 //Builds and returns a map group selection menu.
-Handle:CreateGroupMenu(MenuHandler:handler, bool:limits, client)
+Menu CreateGroupMenu(MenuHandler handler, bool limits, int client)
 {
     //Initialize the menu
-    new Handle:menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "Select A Group");
+    Menu menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("Select A Group");
     
     SetMenuExitBackButton(menu, true);
     
-    KvRewind(map_kv);
+    map_kv.Rewind();
     
     //Get group array.
-    new Handle:groupArray;
+    ArrayList groupArray;
     if (limits)
     {
         groupArray = UMC_CreateValidMapGroupArray(map_kv, umc_mapcycle, false, true);
@@ -2471,7 +2477,7 @@ Handle:CreateGroupMenu(MenuHandler:handler, bool:limits, client)
     
     FilterGroupArrayForAdmin(groupArray, client);
     
-    new size = GetArraySize(groupArray);
+    int size = GetArraySize(groupArray);
     
     //Log an error and return nothing if the number of maps available to be nominated
     if (size == 0)
@@ -2479,11 +2485,11 @@ Handle:CreateGroupMenu(MenuHandler:handler, bool:limits, client)
         LogError("No map groups available to build menu.");
         CloseHandle(menu);
         CloseHandle(groupArray);
-        return INVALID_HANDLE;
+        return null;
     }
     
-    decl String:group[MAP_LENGTH], String:buffer[MAP_LENGTH];
-    for (new i = 0; i < size; i++)
+    char group[MAP_LENGTH], buffer[MAP_LENGTH];
+    for (int i = 0; i < size; i++)
     {
         GetArrayString(groupArray, i, group, sizeof(group));
         if (!limits)
@@ -2521,23 +2527,23 @@ Handle:CreateGroupMenu(MenuHandler:handler, bool:limits, client)
 }
 
 //Builds and returns a map selection menu.
-Handle:CreateMapMenu(MenuHandler:handler, const String:group[], bool:limits, client)
+Menu CreateMapMenu(MenuHandler handler, const char[] group, bool limits, int client)
 {
     //Initialize the menu
-    new Handle:menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
     
     //Set the title.
-    SetMenuTitle(menu, "Select A Map");
+    menu.SetTitle("Select A Map");
     
     SetMenuExitBackButton(menu, true);
     
-    KvRewind(map_kv);
+    map_kv.Rewind();
     
-    new Handle:dispKV = CreateKeyValues("umc_mapcycle");
+    KeyValues dispKV = new KeyValues("umc_mapcycle");
     KvCopySubkeys(umc_mapcycle, dispKV);
 
     //Get map array.
-    new Handle:mapArray;
+    ArrayList mapArray;
     if (limits)
     {
         mapArray = UMC_CreateValidMapArray(map_kv, umc_mapcycle, group, false, true);
@@ -2547,39 +2553,39 @@ Handle:CreateMapMenu(MenuHandler:handler, const String:group[], bool:limits, cli
         mapArray = FetchMapsFromGroup(umc_mapcycle, group);
     }
     
-    new size = GetArraySize(mapArray);
+    int size = GetArraySize(mapArray);
     if (size == 0)
     {
         LogError("No maps available to build menu.");
         CloseHandle(menu);
         CloseHandle(mapArray);
         CloseHandle(dispKV);
-        return INVALID_HANDLE;
+        return null;
     }
     
     //Variables
-    new numCells = ByteCountToCells(MAP_LENGTH);
-    new Handle:menuItems = CreateArray(numCells);
-    new Handle:menuItemDisplay = CreateArray(numCells);
-    decl String:display[MAP_LENGTH+4]; //, String:gDisp[MAP_LENGTH];
-    new Handle:mapTrie = INVALID_HANDLE;
-    decl String:mapBuff[MAP_LENGTH], String:groupBuff[MAP_LENGTH];
-    new bool:excluded;
-    decl String:gAdminFlags[64], String:mAdminFlags[64];
-    for (new i = 0; i < size; i++)
+    int numCells = ByteCountToCells(MAP_LENGTH);
+    ArrayList menuItems = new ArrayList(numCells);
+    ArrayList menuItemDisplay = new ArrayList(numCells);
+    char display[MAP_LENGTH + 4]; //, String:gDisp[MAP_LENGTH];
+    StringMap mapTrie;
+    char mapBuff[MAP_LENGTH], groupBuff[MAP_LENGTH];
+    bool excluded;
+    char gAdminFlags[64], mAdminFlags[64];
+    for (int i = 0; i < size; i++)
     {
-        mapTrie = GetArrayCell(mapArray, i);
+        mapTrie = mapArray.Get(i);
         GetTrieString(mapTrie, MAP_TRIE_MAP_KEY, mapBuff, sizeof(mapBuff));
         GetTrieString(mapTrie, MAP_TRIE_GROUP_KEY, groupBuff, sizeof(groupBuff));
         GetTrieValue(mapTrie, "excluded", excluded);
         
-        KvJumpToKey(umc_mapcycle, groupBuff);
-        KvGetString(umc_mapcycle, ADMINMENU_ADMINFLAG_KEY, gAdminFlags, sizeof(gAdminFlags), "");
-        KvJumpToKey(umc_mapcycle, mapBuff);
+        umc_mapcycle.JumpToKey(groupBuff);
+        umc_mapcycle.GetString(ADMINMENU_ADMINFLAG_KEY, gAdminFlags, sizeof(gAdminFlags), "");
+        umc_mapcycle.JumpToKey(mapBuff);
 
         //Get the name of the current map.
-        KvGetSectionName(umc_mapcycle, mapBuff, sizeof(mapBuff));
-        KvGetString(umc_mapcycle, ADMINMENU_ADMINFLAG_KEY, mAdminFlags, sizeof(mAdminFlags), gAdminFlags);
+        umc_mapcycle.GetSectionName(mapBuff, sizeof(mapBuff));
+        umc_mapcycle.GetString(ADMINMENU_ADMINFLAG_KEY, mAdminFlags, sizeof(mAdminFlags), gAdminFlags);
         
         if (!ClientHasAdminFlags(client, mAdminFlags))
         {
@@ -2590,14 +2596,14 @@ Handle:CreateMapMenu(MenuHandler:handler, const String:group[], bool:limits, cli
             
         if (UMC_IsMapNominated(mapBuff, groupBuff))
         {
-            decl String:buff[MAP_LENGTH];
+            char buff[MAP_LENGTH];
             strcopy(buff, sizeof(buff), display);
             FormatEx(display, sizeof(display), "%s (*)", buff);
         }
             
-        if (excluded || MapExcludedPreviouslyPlayed(mapBuff, groupBuff, vote_mem_arr, vote_catmem_arr, GetConVarInt(cvar_vote_catmem)))
+        if (excluded || MapExcludedPreviouslyPlayed(mapBuff, groupBuff, vote_mem_arr, vote_catmem_arr, cvar_vote_catmem.IntValue))
         {
-            decl String:buff[MAP_LENGTH];
+            char buff[MAP_LENGTH];
             strcopy(buff, sizeof(buff), display);
             FormatEx(display, sizeof(display), "%s (!)", buff);
         }
@@ -2626,13 +2632,13 @@ Handle:CreateMapMenu(MenuHandler:handler, const String:group[], bool:limits, cli
 }
 
 //Builds a menu with Auto and Manual options.
-Handle:CreateAutoManualMenu(MenuHandler:handler, const String:title[])
+Menu CreateAutoManualMenu(MenuHandler handler, const char[] title)
 {
-    new Handle:menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, title);
+    Menu menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle(title);
     
-    AddMenuItem(menu, AMMENU_ITEM_INFO_AUTO, "Auto Select");
-    AddMenuItem(menu, AMMENU_ITEM_INFO_MANUAL, "Manual Select");
+    menu.AddItem(AMMENU_ITEM_INFO_AUTO, "Auto Select");
+    menu.AddItem(AMMENU_ITEM_INFO_MANUAL, "Manual Select");
     
     return menu;
 }
@@ -2641,7 +2647,7 @@ Handle:CreateAutoManualMenu(MenuHandler:handler, const String:title[])
 //                                   ULTIMATE MAPCHOOSER EVENTS                                   //
 //************************************************************************************************//
 //Called when UMC requests that the mapcycle should be reloaded.
-public UMC_RequestReloadMapcycle()
+public void UMC_RequestReloadMapcycle()
 {
     can_vote = ReloadMapcycle();
     if (can_vote)
@@ -2651,12 +2657,12 @@ public UMC_RequestReloadMapcycle()
 }
 
 //Called when UMC requests that the mapcycle is printed to the console.
-public UMC_DisplayMapCycle(client, bool:filtered)
+public void UMC_DisplayMapCycle(int client, bool filtered)
 {
     PrintToConsole(client, "Module: UMC Admin Menu");
     if (filtered)
     {
-        new Handle:filteredMapcycle = UMC_FilterMapcycle(map_kv, umc_mapcycle, false, true);
+        KeyValues filteredMapcycle = UMC_FilterMapcycle(map_kv, umc_mapcycle, false, true);
         PrintKvToConsole(filteredMapcycle, client);
         CloseHandle(filteredMapcycle);
     }

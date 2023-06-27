@@ -28,7 +28,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
  *
  * @noreturn
  */
-forward UMC_EndVote_OnTimeTimerUpdated(timeleft);
+forward void UMC_EndVote_OnTimeTimerUpdated(int timeleft);
 
 
 /**
@@ -38,7 +38,7 @@ forward UMC_EndVote_OnTimeTimerUpdated(timeleft);
  *
  * @noreturn
  */
-forward UMC_EndVote_OnRoundTimerUpdated(roundsleft);
+forward void UMC_EndVote_OnRoundTimerUpdated(int roundsleft);
 
 
 /**
@@ -49,7 +49,7 @@ forward UMC_EndVote_OnRoundTimerUpdated(roundsleft);
  *
  * @noreturn
  */
-forward UMC_EndVote_OnWinTimerUpdated(winsleft, team);
+forward void UMC_EndVote_OnWinTimerUpdated(int winsleft, int team);
 
 
 /**
@@ -60,7 +60,7 @@ forward UMC_EndVote_OnWinTimerUpdated(winsleft, team);
  *
  * @noreturn
  */
-forward UMC_EndVote_OnFragTimerUpdated(fragsleft, client);
+forward void UMC_EndVote_OnFragTimerUpdated(int fragsleft, int client);
 
 
 /**
@@ -70,7 +70,7 @@ forward UMC_EndVote_OnFragTimerUpdated(fragsleft, client);
  *
  * @noreturn
  */
-forward UMC_EndVote_OnTimeTimerTicked(timeleft);
+forward void UMC_EndVote_OnTimeTimerTicked(int timeleft);
 
 
 /** 
@@ -80,7 +80,7 @@ forward UMC_EndVote_OnTimeTimerTicked(timeleft);
  *
  * @noreturn
  */
-forward UMC_EndVote_OnRoundTimerTicked(roundsleft);
+forward void UMC_EndVote_OnRoundTimerTicked(int roundsleft);
 
 
 /**
@@ -91,7 +91,7 @@ forward UMC_EndVote_OnRoundTimerTicked(roundsleft);
  *
  * @noreturn
  */
-forward UMC_EndVote_OnWinTimerTicked(winsleft, team);
+forward void UMC_EndVote_OnWinTimerTicked(int winsleft, int team);
 
 
 /**
@@ -102,11 +102,11 @@ forward UMC_EndVote_OnWinTimerTicked(winsleft, team);
  *
  * @noreturn
  */
-forward UMC_EndVote_OnFragTimerTicked(fragsleft, client);
+forward void UMC_EndVote_OnFragTimerTicked(int fragsleft, int client);
 
 
 //SourceMod Malarky
-public SharedPlugin:__pl_umc_endvote =
+public SharedPlugin __pl_umc_endvote =
 {
     name = "umc-endvote",
     file = "umc-endvote.smx",
@@ -117,7 +117,6 @@ public SharedPlugin:__pl_umc_endvote =
 #endif
 };
 
-public __pl_umc_endvote_SetNTVOptional()
+public void __pl_umc_endvote_SetNTVOptional()
 {
-
 }
