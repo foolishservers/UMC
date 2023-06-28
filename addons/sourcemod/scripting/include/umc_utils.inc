@@ -784,7 +784,7 @@ stock bool GetWeightedRandomSubKey(char[] buffer, int size, ArrayList weightArr,
         
         //DEBUG_MESSAGE("Check if we're at the right item.")
         //We have found an answer if the running total has reached the random number.
-        if (runningTotal > rand)
+        if (runningTotal >= rand)
         {
             //DEBUG_MESSAGE("Item found.")
             nameArr.GetString(i, buffer, size);

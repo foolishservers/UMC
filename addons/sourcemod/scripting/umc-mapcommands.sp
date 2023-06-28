@@ -27,7 +27,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 public Plugin myinfo =
 {
 	name		= "[UMC] Map Commands",
-	author		= "Previous:Steell,Powerlord - Current: Mr.Silence",
+	author		= PL_AUTHOR,
 	description = "Allows users to specify commands to be executed for maps and map groups.",
 	version		= PL_VERSION,
 	url			= "http://forums.alliedmods.net/showthread.php?t=134190"

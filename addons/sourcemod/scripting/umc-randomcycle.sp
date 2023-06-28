@@ -30,7 +30,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 public Plugin myinfo =
 {
 	name		= "[UMC] Random Cycle",
-	author		= "Sandy",
+	author		= PL_AUTHOR,
 	description = "Extends Ultimate Mapchooser to provide random selecting of the next map.",
 	version		= PL_VERSION,
 	url			= "http://forums.alliedmods.net/showthread.php?t=134190"

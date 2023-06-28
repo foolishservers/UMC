@@ -38,7 +38,7 @@ ConVar cvar_logging;
 public Plugin myinfo =
 {
 	name		= "[UMC] Native Voting",
-	author		= "Sandy",
+	author		= PL_AUTHOR,
 	description = "Extends Ultimate Mapchooser to allow usage of Native Votes.",
 	version		= PL_VERSION,
 	url			= "http://forums.alliedmods.net/showthread.php?t=134190"
@@ -109,7 +109,7 @@ public Action VM_MapVote(int duration, ArrayList vote_items, const int[] clients
 
 	// new Handle:menu = BuildVoteMenu(vote_items, "Map Vote Menu Title", Handle_MapVoteResults);
 	// g_menu = BuildVoteMenu(vote_items, Handle_MapVoteResults);
-	g_vote		= BuildVoteMenu(vote_items, Handle_MapVoteResults, NativeVotesType_NextLevelMult);
+	g_vote = BuildVoteMenu(vote_items, Handle_MapVoteResults, NativeVotesType_NextLevelMult);
 
 	vote_active = true;
 
@@ -162,7 +162,7 @@ public Action VM_GroupVote(int duration, ArrayList vote_items, const int[] clien
 	}
 
 	// new Handle:menu = BuildVoteMenu(vote_items, "Map Vote Menu Title", Handle_MapVoteResults);
-	g_vote		= BuildVoteMenu(vote_items, Handle_MapVoteResults, NativeVotesType_Custom_Mult, "Group Vote Menu Title");
+	g_vote = BuildVoteMenu(vote_items, Handle_MapVoteResults, NativeVotesType_Custom_Mult, "Group Vote Menu Title");
 
 	vote_active = true;
 
@@ -212,7 +212,7 @@ NativeVote BuildVoteMenu(ArrayList vote_items, NativeVotes_VoteHandler callback,
 	NativeVotes_SetResultCallback(menu, callback);	  // Set callback
 
 	StringMap voteItem;
-	char	  info[MAP_LENGTH], display[MAP_LENGTH];
+	char info[MAP_LENGTH], display[MAP_LENGTH];
 	for (int i = 0; i < size; i++)
 	{
 		voteItem = vote_items.Get(i);

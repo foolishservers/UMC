@@ -35,7 +35,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 public Plugin myinfo =
 {
 	name		= "[UMC] Ultimate Mapchooser Core",
-	author		= "Current: Sandy",
+	author		= PL_AUTHOR,
 	description = "Core component for [UMC]",
 	version		= PL_VERSION,
 	url			= "http://forums.alliedmods.net/showthread.php?t=134190"
@@ -576,7 +576,7 @@ public any Native_UMCRegVoteManager(Handle plugin, int numParams)
 {
 	StringMap voteManager;
 
-	int		  len;
+	int len;
 	GetNativeStringLength(1, len);
 	char[] id = new char[len + 1];
 	if (len > 0)
@@ -1456,7 +1456,7 @@ public Action VM_MapVote(int duration, ArrayList vote_items, const int[] clients
 		return Plugin_Stop;
 	}
 
-	Menu menu		 = BuildVoteMenu(vote_items, "Map Vote Menu Title", Handle_MapVoteResults);
+	Menu menu = BuildVoteMenu(vote_items, "Map Vote Menu Title", Handle_MapVoteResults);
 
 	core_vote_active = (menu != null && VoteMenu(menu, clientArr, count, duration));
 
@@ -1511,7 +1511,7 @@ public Action VM_GroupVote(int duration, ArrayList vote_items, const int[] clien
 		return Plugin_Stop;
 	}
 
-	Menu menu		 = BuildVoteMenu(vote_items, "Group Vote Menu Title", Handle_MapVoteResults);
+	Menu menu = BuildVoteMenu(vote_items, "Group Vote Menu Title", Handle_MapVoteResults);
 	core_vote_active = true;
 
 	if (menu != null && VoteMenu(menu, clientArr, count, duration))
@@ -1905,7 +1905,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 	ClearVoteArrays(voteManager);
 
 	// Determine how we're logging
-	bool	  verboseLogs = GetConVarBool(g_Cvar_Logging);
+	bool	  verboseLogs = g_Cvar_Logging.BoolValue;
 
 	// Buffers
 	char	  mapName[MAP_LENGTH];	  // Name of the map
@@ -1948,7 +1948,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 		// Get all nominations for the current category.
 		if (exclude)
 		{
-			tempCatNoms		   = GetCatNominations(catName);
+			tempCatNoms = GetCatNominations(catName);
 			nominationsFromCat = FilterNominationsArray(tempCatNoms);
 			CloseHandle(tempCatNoms);
 		}
@@ -2055,7 +2055,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 						GetTrieString(nom, "nom_group", nomGroup, sizeof(nomGroup));
 
 						// Get the position in the vote array to add the map to
-						position		 = GetNextMenuIndex(voteCounter, scramble);
+						position = GetNextMenuIndex(voteCounter, scramble);
 
 						// Template
 						KeyValues dispKV = new KeyValues("umc_mapcycle");
@@ -2175,6 +2175,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 		while (numMapsFromCat > 0)
 		{
 			// Skip the category if there are no more maps that can be added to the vote.
+			// This is Problem. Why?
 			if (!GetRandomMap(kv, mapName, sizeof(mapName)))
 			{
 				if (verboseLogs)
@@ -2210,7 +2211,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 			{
 				StringMap nom = GetArrayCell(g_Nominations_Arr, nomIndex);
 
-				int		  owner;
+				int owner;
 				GetTrieValue(nom, "client", owner);
 
 				Call_StartForward(g_Nomination_Reset_Forward);
@@ -2273,7 +2274,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 	ArrayList infoArr = BuildNumArray(voteCounter);
 
 	StringMap voteItem;
-	char	  buffer[MAP_LENGTH];
+	char buffer[MAP_LENGTH];
 	for (int i = 0; i < voteCounter; i++)
 	{
 		voteItem = new StringMap();
@@ -2566,10 +2567,10 @@ bool GetRandomMap(KeyValues kv, char[] buffer, int size)
 		return false;
 	}
 
-	int		  index		= 0;											  // counter of maps in the random pool
-	ArrayList nameArr	= new ArrayList(ByteCountToCells(MAP_LENGTH));	  // Array to store possible map names
+	int	index = 0;	 // counter of maps in the random pool
+	ArrayList nameArr = new ArrayList(ByteCountToCells(MAP_LENGTH));	  // Array to store possible map names
 	ArrayList weightArr = new ArrayList();								  // Array to store possible map weights.
-	char	  temp[MAP_LENGTH];											  // Buffer to store map names in.
+	char temp[MAP_LENGTH];	// Buffer to store map names in.
 
 	// Add a map to the random pool.
 	do
@@ -2670,7 +2671,7 @@ void ClearVoteArrays(StringMap voteManager)
 	ArrayList map_vote;
 	GetTrieValue(voteManager, "map_vote", map_vote);
 
-	int		  size = GetArraySize(map_vote);
+	int size = GetArraySize(map_vote);
 	StringMap mapTrie;
 	KeyValues kv;
 	for (int i = 0; i < size; i++)
@@ -3023,11 +3024,11 @@ void DoRunoffVote(StringMap vM, StringMap response)
 
 		// Setup data pack to go along with the timer.
 		DataPack pack;
+		CreateDataTimer(1.0, Handle_RunoffVoteTimer, pack, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 		// Add info to the pack.
 		WritePackCell(pack, vM);
 		WritePackCell(pack, runoffOptions);
 		WritePackCell(pack, runoffClients);
-		CreateDataTimer(1.0, Handle_RunoffVoteTimer, pack, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 		SetTrieValue(response, "response", VoteResponse_Runoff);
 	}
 	else	// Otherwise, cleanup
@@ -3688,9 +3689,9 @@ public Action Handle_TieredVoteTimer(Handle timer, DataPack pack)
 	GetTrieValue(vM, "stored_exclude", stored_exclude);
 
 	// Initialize the menu.
-	ArrayList			  options = new ArrayList();
+	ArrayList options = new ArrayList();
 
-	UMC_BuildOptionsError error	  = BuildMapVoteItems(
+	UMC_BuildOptionsError error = BuildMapVoteItems(
 		  vM, options, stored_mapcycle, tieredKV,
 		  stored_scramble, false,
 		  false, stored_ignoredupes,

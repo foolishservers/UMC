@@ -27,7 +27,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 public Plugin myinfo =
 {
 	name		= "[UMC] Post-Played Exclusion",
-	author		= "Sandy",
+	author		= PL_AUTHOR,
 	description = "Allows users to specify an amount of time after a map is played that it should be excluded.",
 	version		= PL_VERSION,
 	url			= "http://forums.alliedmods.net/showthread.php?t=134190"

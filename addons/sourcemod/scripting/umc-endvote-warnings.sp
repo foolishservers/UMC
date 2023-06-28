@@ -31,7 +31,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 public Plugin myinfo =
 {
 	name		= "[UMC] End of Map Vote Warnings",
-	author		= "Previous:Steell,Powerlord - Current: Mr.Silence",
+	author		= PL_AUTHOR,
 	description = "Adds vote warnings to UMC End of Map Votes.",
 	version		= PL_VERSION,
 	url			= "http://forums.alliedmods.net/showthread.php?t=134190"

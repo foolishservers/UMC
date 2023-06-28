@@ -30,7 +30,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 public Plugin myinfo =
 {
 	name		= "[UMC] Nominations",
-	author		= "Sandy",
+	author		= PL_AUTHOR,
 	description = "Extends Ultimate Mapchooser to allow players to nominate maps.",
 	version		= PL_VERSION,
 	url			= "http://forums.alliedmods.net/showthread.php?t=134190"

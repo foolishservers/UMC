@@ -33,7 +33,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 public Plugin myinfo =
 {
 	name		= "[UMC] Map Rate Reweight",
-	author		= "Previous:Steell,Powerlord - Current: Mr.Silence",
+	author		= PL_AUTHOR,
 	description = "Reweights maps in UMC based off of their average rating in Map Rate.",
 	version		= PL_VERSION,
 	url			= "http://forums.alliedmods.net/showthread.php?t=134190"

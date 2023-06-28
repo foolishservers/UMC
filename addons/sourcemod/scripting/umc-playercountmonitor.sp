@@ -43,7 +43,7 @@ enum PlayerLimit_Action
 public Plugin myinfo =
 {
 	name		= "[UMC] Player Count Monitor",
-	author		= "Sandy",
+	author		= PL_AUTHOR,
 	description = "Extends Ultimate Mapchooser to watch for Player Limits and changing the map if they're broken.",
 	version		= PL_VERSION,
 	url			= "http://forums.alliedmods.net/showthread.php?t=134190"

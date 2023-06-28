@@ -74,7 +74,7 @@ along with this plugin.  If not, see <http://www.gnu.org/licenses/>.
 public Plugin myinfo =
 {
     name        = "[UMC] Admin Menu",
-    author      = "Previous:Steell,Powerlord - Current: Mr.Silence",
+    author      = PL_AUTHOR,
     description = "Adds an Ultimate Mapchooser entry in the SourceMod Admin Menu.",
     version     = PL_VERSION,
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
