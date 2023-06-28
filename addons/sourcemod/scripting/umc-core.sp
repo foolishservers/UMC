@@ -123,6 +123,7 @@ ConVar g_Cvar_WinLimit;
 ConVar g_Cvar_NextLevel;  //GE:S
 ConVar g_Cvar_ZpsMaxRnds; // ZPS Survival
 ConVar g_Cvar_ZpoMaxRnds; // ZPS Objective
+
 //************************************************************************************************//
 //                                        SOURCEMOD EVENTS                                        //
 //************************************************************************************************//
@@ -267,7 +268,7 @@ public void OnPluginStart()
 	HookEventEx("game_round_restart", Event_RoundEnd);	  // ZPS
 
 	// Initialize our vote arrays
-	g_Nominations_Arr = CreateArray();
+	g_Nominations_Arr = new ArrayList();
 
 	// Make listeners for player chat. Needed to recognize chat commands ("rtv", etc.)
 	AddCommandListener(OnPlayerChat, "say");
@@ -376,7 +377,7 @@ public void OnClientDisconnect(int client)
 	// Remove the client from the nomination pool if the client is in the pool to begin with.
 	if (index != -1)
 	{
-		StringMap nomination = GetArrayCell(g_Nominations_Arr, index);
+		StringMap nomination = g_Nominations_Arr.Get(index);
 		char oldMap[MAP_LENGTH];
 		GetTrieString(nomination, MAP_TRIE_MAP_KEY, oldMap, sizeof(oldMap));
 		int owner;
@@ -414,10 +415,10 @@ public void OnMapEnd()
 	ClearNominations();
 
 	// End all votes currently in progress.
-	int		  size = GetArraySize(g_Vote_Manager_IDs);
+	int	size = GetArraySize(g_Vote_Manager_IDs);
 	StringMap vM;
-	bool	  inProgress;
-	char	  id[64];
+	bool inProgress;
+	char id[64];
 	for (int i = 0; i < size; i++)
 	{
 		g_Vote_Manager_IDs.GetString(i, id, sizeof(id));
@@ -480,8 +481,8 @@ public any Native_UMCIsNewVoteAllowed(Handle plugin, int numParams)
 // return int: UMC_FormatDisplayString
 public any Native_UMCFormatDisplay(Handle plugin, int numParams)
 {
-	int		  maxlen = GetNativeCell(2);
-	KeyValues kv	 = new KeyValues("umc_mapcycle");
+	int	maxlen = GetNativeCell(2);
+	KeyValues kv = new KeyValues("umc_mapcycle");
 	KvCopySubkeys(GetNativeCell(3), kv);
 
 	int len;
@@ -521,7 +522,7 @@ public any Native_UMCVoteManagerVoted(Handle plugin, int numParams)
 	{
 		GetNativeString(1, id, len + 1);
 	}
-	int		  client = GetNativeCell(2);
+	int client = GetNativeCell(2);
 
 	ArrayList option = GetNativeCell(3);
 
@@ -541,10 +542,10 @@ public any Native_UMCFilterMapcycle(Handle plugin, int numParams)
 	KeyValues arg = GetNativeCell(1);
 	KvCopySubkeys(arg, kv);
 
-	KeyValues mapcycle	   = GetNativeCell(2);
+	KeyValues mapcycle = GetNativeCell(2);
 
-	bool	  isNom		   = GetNativeCell(3);
-	bool	  forMapChange = GetNativeCell(4);
+	bool isNom		  = GetNativeCell(3);
+	bool forMapChange = GetNativeCell(4);
 
 	FilterMapcycle(kv, mapcycle, isNom, forMapChange);
 
@@ -604,7 +605,7 @@ public any Native_UMCRegVoteManager(Handle plugin, int numParams)
 	cancelCallback.AddFunction(plugin, GetNativeFunction(4));
 
 	PrivateForward progressCallback = new PrivateForward(ET_Single);
-	Function	   progressFunction = GetNativeFunction(5);
+	Function progressFunction = GetNativeFunction(5);
 
 	if (progressFunction != INVALID_FUNCTION)
 	{
@@ -697,13 +698,13 @@ public any Native_UMCVoteManagerComplete(Handle plugin, int numParams)
 	StringMap vM;
 	GetTrieValue(g_Vote_Managers, id, vM);
 
-	StringMap		 response = ProcessVoteResults(vM, voteOptions);
+	StringMap response = ProcessVoteResults(vM, voteOptions);
 
 	// UMC_VoteResponseHandler handler = view_as<UMC_VoteResponseHandler>(GetNativeFunction(3));
-	Function		 handler  = GetNativeFunction(3);
+	Function handler  = GetNativeFunction(3);
 
 	UMC_VoteResponse result;
-	char			 param[MAP_LENGTH];
+	char param[MAP_LENGTH];
 	GetTrieValue(response, "response", result);
 	GetTrieString(response, "param", param, sizeof(param));
 
@@ -725,23 +726,23 @@ public any Native_UMCVoteManagerComplete(Handle plugin, int numParams)
 // native ArrayList UMC_CreateValidMapArray(KeyValues mapcycle, KeyValues originalMapcycle, const char[] group, bool isNom, bool forMapChange);
 public any Native_UMCCreateMapArray(Handle plugin, int numParams)
 {
-	KeyValues kv  = CreateKeyValues("umc_rotation");
+	KeyValues kv  = new KeyValues("umc_rotation");
 	KeyValues arg = GetNativeCell(1);
 	KvCopySubkeys(arg, kv);
 
 	KeyValues mapcycle = GetNativeCell(2);
 
-	int		  len;
+	int len;
 	GetNativeStringLength(3, len);
 	char[] group = new char[len + 1];
 	if (len > 0)
 	{
 		GetNativeString(3, group, len + 1);
 	}
-	bool	  isNom		   = GetNativeCell(4);
-	bool	  forMapChange = GetNativeCell(5);
+	bool isNom		  = GetNativeCell(4);
+	bool forMapChange = GetNativeCell(5);
 
-	ArrayList result	   = CreateMapArray(kv, mapcycle, group, isNom, forMapChange);
+	ArrayList result = CreateMapArray(kv, mapcycle, group, isNom, forMapChange);
 
 	CloseHandle(kv);
 
@@ -753,8 +754,8 @@ public any Native_UMCCreateMapArray(Handle plugin, int numParams)
 	// Clone all of the handles in the array to prevent memory leaks.
 	ArrayList cloned = new ArrayList();
 
-	int		  size	 = GetArraySize(result);
-	Handle	  map;	  // Right?
+	int size = GetArraySize(result);
+	Handle map;	  // Is it StringMap?
 	for (int i = 0; i < size; i++)
 	{
 		map = result.Get(i);
@@ -796,7 +797,7 @@ ArrayList CreateMapArray(KeyValues kv, KeyValues mapcycle, const char[] group, b
 	}
 
 	ArrayList result = new ArrayList();
-	char	  mapName[MAP_LENGTH], groupName[MAP_LENGTH];
+	char mapName[MAP_LENGTH], groupName[MAP_LENGTH];
 	do
 	{
 		kv.GetSectionName(groupName, sizeof(groupName));
@@ -841,13 +842,13 @@ ArrayList CreateMapArray(KeyValues kv, KeyValues mapcycle, const char[] group, b
 public any Native_UMCCreateGroupArray(Handle plugin, int numParams)
 {
 	KeyValues arg = GetNativeCell(1);
-	KeyValues kv  = CreateKeyValues("umc_rotation");
+	KeyValues kv  = new KeyValues("umc_rotation");
 	KvCopySubkeys(arg, kv);
 	KeyValues mapcycle	   = GetNativeCell(2);
 	bool	  isNom		   = GetNativeCell(3);
 	bool	  forMapChange = GetNativeCell(4);
 
-	ArrayList result	   = CreateMapGroupArray(kv, mapcycle, isNom, forMapChange);
+	ArrayList result = CreateMapGroupArray(kv, mapcycle, isNom, forMapChange);
 
 	CloseHandle(kv);
 
@@ -864,7 +865,7 @@ ArrayList CreateMapGroupArray(KeyValues kv, KeyValues mapcycle, bool isNom, bool
 	}
 
 	ArrayList result = new ArrayList(ByteCountToCells(MAP_LENGTH));
-	char	  groupName[MAP_LENGTH];
+	char groupName[MAP_LENGTH];
 	do
 	{
 		if (IsValidCat(kv, mapcycle, isNom, forMapChange))
@@ -902,7 +903,7 @@ public any Native_UMCIsMapNominated(Handle plugin, int numParams)
 // native bool UMC_NominateMap(KeyValues mapcycle, const char[] map, const char[] group, int client, const char[] nominationGroup = INVALID_GROUP);
 public any Native_UMCNominateMap(Handle plugin, int numParams)
 {
-	KeyValues kv = CreateKeyValues("umc_rotation");
+	KeyValues kv = new KeyValues("umc_rotation");
 	KvCopySubkeys(GetNativeCell(1), kv);
 
 	int len;
@@ -1044,9 +1045,9 @@ public any Native_UMCStartVote(Handle plugin, int numParams)
 	bool nominationStrictness = GetNativeCell(21);
 	bool allowDuplicates	  = GetNativeCell(22);
 
-	int	 voteClients[MAXPLAYERS + 1];
+	int	voteClients[MAXPLAYERS + 1];
 	GetNativeArray(23, voteClients, sizeof(voteClients));
-	int	 numClients		   = GetNativeCell(24);
+	int	numClients = GetNativeCell(24);
 
 	bool runExclusionCheck = (numParams >= 25) ? (GetNativeCell(25)) : true;
 
@@ -1547,7 +1548,7 @@ Menu BuildVoteMenu(ArrayList vote_items, const char[] title, VoteHandler callbac
 	SetMenuTitle(menu, title);
 
 	// Keep track of slots taken up in the vote.
-	int blockSlots = GetConVarInt(g_Cvar_Block_Slots);
+	int blockSlots = g_Cvar_Block_Slots.IntValue;
 	int voteSlots  = blockSlots;
 
 	if (g_Cvar_NoVote.BoolValue)
@@ -1581,7 +1582,7 @@ Menu BuildVoteMenu(ArrayList vote_items, const char[] title, VoteHandler callbac
 		voteItem = vote_items.Get(i);
 		GetTrieString(voteItem, "info", info, sizeof(info));
 		GetTrieString(voteItem, "display", display, sizeof(display));
-		AddMenuItem(menu, info, display);
+		menu.AddItem(info, display);
 
 		if (verboseLogs)
 		{
@@ -1638,7 +1639,7 @@ public int Handle_VoteMenu(Menu menu, MenuAction action, int param1, int param2)
 		{
 			Panel panel = view_as<Panel>(param2);
 
-			char  phrase[255];
+			char phrase[255];
 			GetMenuTitle(menu, phrase, sizeof(phrase));
 
 			char buffer[255];
@@ -1696,7 +1697,7 @@ public void Handle_MapVoteResults(Menu menu, int num_votes, int num_clients, con
 	UMC_VoteManagerVoteCompleted("core", results, Handle_Response);
 
 	// Free Memory
-	int		  size = GetArraySize(results);
+	int size = GetArraySize(results);
 	StringMap item;
 	ArrayList clients;
 	for (int i = 0; i < size; i++)
@@ -1725,7 +1726,7 @@ ArrayList ConvertVoteResults(Menu menu, int num_clients, const int[][] client_in
 	for (int i = 0; i < num_items; i++)
 	{
 		itemIndex = item_info[i][VOTEINFO_ITEM_INDEX];
-		GetMenuItem(menu, itemIndex, info, sizeof(info), _, disp, sizeof(disp));
+		menu.GetItem(itemIndex, info, sizeof(info), _, disp, sizeof(disp));
 
 		voteItem		= new StringMap();
 		voteClientArray = new ArrayList();
@@ -1734,13 +1735,13 @@ ArrayList ConvertVoteResults(Menu menu, int num_clients, const int[][] client_in
 		SetTrieString(voteItem, "display", disp);
 		SetTrieValue(voteItem, "clients", voteClientArray);
 
-		PushArrayCell(result, voteItem);
+		result.Push(voteItem);
 
 		for (int j = 0; j < num_clients; j++)
 		{
 			if (client_info[j][VOTEINFO_CLIENT_ITEM] == itemIndex)
 			{
-				PushArrayCell(voteClientArray, client_info[j][VOTEINFO_CLIENT_INDEX]);
+				voteClientArray.Push(client_info[j][VOTEINFO_CLIENT_INDEX]);
 			}
 		}
 	}
@@ -1757,8 +1758,8 @@ void DisableVoteInProgress(StringMap vM)
 
 void FreeOptions(ArrayList options)
 {
-	int	   size = GetArraySize(options);
-	Handle item;
+	int	size = GetArraySize(options);
+	Handle item;	// maybe it is StringMap.
 	for (int i = 0; i < size; i++)
 	{
 		item = options.Get(i);
@@ -1839,7 +1840,7 @@ enum UMC_BuildOptionsError
 // Build and returns a new vote menu.
 ArrayList BuildVoteItems(StringMap vM, KeyValues kv, KeyValues mapcycle, UMC_VoteType &type, bool scramble, bool allowDupes, bool strictNoms, bool exclude, bool extend, bool dontChange)
 {
-	ArrayList			  result = new ArrayList();
+	ArrayList result = new ArrayList();
 	UMC_BuildOptionsError error;
 
 	switch (type)
@@ -1905,7 +1906,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 	ClearVoteArrays(voteManager);
 
 	// Determine how we're logging
-	bool	  verboseLogs = g_Cvar_Logging.BoolValue;
+	bool verboseLogs = g_Cvar_Logging.BoolValue;
 
 	// Buffers
 	char	  mapName[MAP_LENGTH];	  // Name of the map
@@ -1927,12 +1928,12 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 
 	ArrayList map_vote_display = new ArrayList(ByteCountToCells(MAP_LENGTH));
 
-	int		  nomIndex, position, numMapsFromCat, nomCounter, inVote, index;	//, cIndex;
+	int nomIndex, position, numMapsFromCat, nomCounter, inVote, index;	//, cIndex;
 
-	int		  tierAmount = g_Cvar_Vote_TierAmount.IntValue;
+	int tierAmount = g_Cvar_Vote_TierAmount.IntValue;
 
 	KeyValues nomKV;
-	char	  nomGroup[MAP_LENGTH];
+	char nomGroup[MAP_LENGTH];
 
 	// Add maps to vote array from current category.
 	do
@@ -1940,10 +1941,10 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 		WeightMapGroup(kv, mapcycle);
 
 		// Store the name of the current category.
-		KvGetSectionName(kv, catName, sizeof(catName));
+		kv.GetSectionName(catName, sizeof(catName));
 
 		// Get the map-display template from the categeory definition.
-		KvGetString(kv, "display-template", gDisp, sizeof(gDisp), "{MAP}");
+		kv.GetString("display-template", gDisp, sizeof(gDisp), "{MAP}");
 
 		// Get all nominations for the current category.
 		if (exclude)
@@ -1960,7 +1961,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 		numNoms = GetArraySize(nominationsFromCat);
 
 		// Get the total amount of maps to appear in the vote from this category.
-		inVote	= ignoreInvoteSetting ? tierAmount : KvGetNum(kv, "maps_invote", 1);
+		inVote = ignoreInvoteSetting ? tierAmount : kv.GetNum("maps_invote", 1);
 
 		if (verboseLogs)
 		{
@@ -2009,7 +2010,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 				for (int i = 0; i < numNoms; i++)
 				{
 					// Store nomination.
-					trie = GetArrayCell(nominationsFromCat, i);
+					trie = nominationsFromCat.Get(i);
 
 					// Get the map name from the nomination.
 					GetTrieString(trie, MAP_TRIE_MAP_KEY, mapName, sizeof(mapName));
@@ -2032,11 +2033,11 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 						GetTrieValue(trie, "mapcycle", nomKV);
 
 						// Add map name to the pool.
-						PushArrayString(nameArr, mapName);
+						nameArr.PushString(mapName);
 
 						// Add map weight to the pool.
-						PushArrayCell(weightArr, GetMapWeight(nomKV, mapName, catName));
-						PushArrayCell(cycleArr, trie);
+						weightArr.Push(GetMapWeight(nomKV, mapName, catName));
+						cycleArr.Push(trie);
 					}
 				}
 
@@ -2314,7 +2315,7 @@ UMC_BuildOptionsError BuildMapVoteItems(StringMap voteManager, ArrayList result,
 		}
 		else
 		{
-			PushArrayCell(result, voteItem);
+			result.Push(voteItem);
 		}
 	}
 
@@ -2337,7 +2338,7 @@ UMC_BuildOptionsError BuildCatVoteItems(StringMap vM, ArrayList result, KeyValue
 	KvCopySubkeys(okv, kv);
 
 	// Log an error and return nothing if it cannot find a category.
-	if (!KvGotoFirstSubKey(kv))
+	if (!kv.GotoFirstSubKey())
 	{
 		LogError("VOTING: No map groups found in rotation. Vote menu was not built.");
 		CloseHandle(kv);
@@ -2346,7 +2347,7 @@ UMC_BuildOptionsError BuildCatVoteItems(StringMap vM, ArrayList result, KeyValue
 
 	ClearVoteArrays(vM);
 
-	bool	  verboseLogs = g_Cvar_Logging.BoolValue;
+	bool verboseLogs = g_Cvar_Logging.BoolValue;
 
 	char	  catName[MAP_LENGTH];	  // Buffer to store category name in.
 	char	  mapName[MAP_LENGTH];
@@ -2690,7 +2691,7 @@ any GetWinner(StringMap vM)
 	ArrayList vote_storage;
 	GetTrieValue(vM, "vote_storage", vote_storage);
 
-	int		  counter  = 1;
+	int counter = 1;
 	StringMap voteItem = GetArrayCell(vote_storage, 0);
 	ArrayList voteClients;
 	GetTrieValue(voteItem, "clients", voteClients);
@@ -2796,9 +2797,9 @@ void GetVoteWinner(StringMap vM, char[] info, int maxinfo, float &percentage, ch
 // Finds the index of the given vote item in the storage array. Returns -1 on failure.
 int FindVoteInStorage(ArrayList vote_storage, const char[] info)
 {
-	int		  arraySize = GetArraySize(vote_storage);
+	int arraySize = GetArraySize(vote_storage);
 	StringMap vote;
-	char	  infoBuf[255];
+	char infoBuf[255];
 	for (int i = 0; i < arraySize; i++)
 	{
 		vote = GetArrayCell(vote_storage, i);
@@ -2814,13 +2815,13 @@ int FindVoteInStorage(ArrayList vote_storage, const char[] info)
 // Comparison function for stored vote items. Used for sorting.
 public int CompareStoredVoteItems(int index1, int index2, Handle array, Handle hndl)
 {
-	int		  size1, size2;
+	int size1, size2;
 	StringMap vote;
 	ArrayList clientArray;
 	vote = GetArrayCell(array, index1);
 	GetTrieValue(vote, "clients", clientArray);
 	size1 = GetArraySize(clientArray);
-	vote  = GetArrayCell(array, index2);
+	vote = GetArrayCell(array, index2);
 	GetTrieValue(vote, "clients", clientArray);
 	size2 = GetArraySize(clientArray);
 	return size2 - size1;
@@ -2833,15 +2834,15 @@ void AddToStorage(StringMap vM, ArrayList vote_results)
 	GetTrieValue(vM, "vote_storage", vote_storage);
 	SetTrieValue(vM, "prev_vote_count", GetArraySize(vote_storage));
 
-	int		  num_items = GetArraySize(vote_results);
-	int		  storageIndex;
-	int		  num_votes = 0;
+	int num_items = GetArraySize(vote_results);
+	int storageIndex;
+	int num_votes = 0;
 	StringMap voteItem;
 	ArrayList voteClientArray;
-	char	  infoBuffer[255], dispBuffer[255];
+	char infoBuffer[255], dispBuffer[255];
 	for (int i = 0; i < num_items; i++)
 	{
-		voteItem = GetArrayCell(vote_results, i);
+		voteItem = vote_results.Get(i);
 		GetTrieString(voteItem, "info", infoBuffer, sizeof(infoBuffer));
 		storageIndex = FindVoteInStorage(vote_storage, infoBuffer);
 		GetTrieValue(voteItem, "clients", voteClientArray);
@@ -2853,12 +2854,12 @@ void AddToStorage(StringMap vM, ArrayList vote_results)
 			GetTrieString(voteItem, "display", dispBuffer, sizeof(dispBuffer));
 			SetTrieString(newItem, "display", dispBuffer);
 			SetTrieValue(newItem, "clients", CloneArray(voteClientArray));
-			PushArrayCell(vote_storage, newItem);
+			vote_storage.Push(newItem);
 		}
 		else
 		{
 			ArrayList storageClientArray;
-			GetTrieValue(GetArrayCell(vote_storage, storageIndex), "client", storageClientArray);
+			GetTrieValue(vote_storage.Get(storageIndex), "client", storageClientArray);
 			ArrayAppend(storageClientArray, voteClientArray);
 		}
 	}
@@ -3026,9 +3027,9 @@ void DoRunoffVote(StringMap vM, StringMap response)
 		DataPack pack;
 		CreateDataTimer(1.0, Handle_RunoffVoteTimer, pack, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 		// Add info to the pack.
-		WritePackCell(pack, vM);
-		WritePackCell(pack, runoffOptions);
-		WritePackCell(pack, runoffClients);
+		pack.WriteCell(vM);
+		pack.WriteCell(runoffOptions);
+		pack.WriteCell(runoffClients);
 		SetTrieValue(response, "response", VoteResponse_Runoff);
 	}
 	else	// Otherwise, cleanup
@@ -3321,8 +3322,8 @@ public void Handle_MapVoteWinner(StringMap vM, const char[] info, const char[] d
 		GetTrieString(vM, "stored_reason", stored_reason, sizeof(stored_reason));
 
 		// Find the index of the winning map in the stored vote array.
-		int		  index = StringToInt(info);
-		char	  map[MAP_LENGTH], group[MAP_LENGTH];
+		int index = StringToInt(info);
+		char map[MAP_LENGTH], group[MAP_LENGTH];
 
 		StringMap mapData = map_vote.Get(index);
 		GetTrieString(mapData, MAP_TRIE_MAP_KEY, map, sizeof(map));
@@ -3403,7 +3404,7 @@ public void Handle_CatVoteWinner(StringMap vM, const char[] cat, const char[] di
 		KvCopySubkeys(stored_kv, kv);
 
 		// Jump to the category in the mapcycle.
-		KvJumpToKey(kv, cat);
+		kv.JumpToKey(cat);
 
 		if (stored_exclude)
 		{
@@ -3625,8 +3626,8 @@ public void Handle_TierVoteWinner(StringMap vM, const char[] cat, const char[] d
 		// Setup timer to delay the next vote for a few seconds.
 		DataPack pack = new DataPack();
 		CreateDataTimer(1.0, Handle_TieredVoteTimer, pack, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
-		WritePackCell(pack, vM);
-		WritePackCell(pack, tieredKV);
+		pack.WriteCell(vM);
+		pack.WriteCell(tieredKV);
 	}
 
 	char stored_end_sound[PLATFORM_MAX_PATH];
@@ -3645,7 +3646,7 @@ public Action Handle_TieredVoteTimer(Handle timer, DataPack pack)
 	pack.Reset();
 	StringMap vM = pack.ReadCell();
 
-	bool	  vote_inprogress;
+	bool vote_inprogress;
 	GetTrieValue(vM, "in_progress", vote_inprogress);
 
 	if (!vote_inprogress)
@@ -3748,26 +3749,26 @@ void ExtendMap(StringMap vM)
 	GetTrieValue(vM, "extend_fragstep", extend_fragstep);
 
 	// Generic/Used in most games
-	if (g_Cvar_MaxRounds != INVALID_HANDLE && GetConVarInt(g_Cvar_MaxRounds) > 0)
+	if (g_Cvar_MaxRounds != null && g_Cvar_MaxRounds.IntValue > 0)
 	{
-		SetConVarInt(g_Cvar_MaxRounds, GetConVarInt(g_Cvar_MaxRounds) + extend_roundstep);
+		g_Cvar_MaxRounds.IntValue += extend_roundstep;
 	}
-	if (g_Cvar_WinLimit != INVALID_HANDLE && GetConVarInt(g_Cvar_WinLimit) > 0)
+	if (g_Cvar_WinLimit != null && g_Cvar_WinLimit.IntValue > 0)
 	{
-		SetConVarInt(g_Cvar_WinLimit, GetConVarInt(g_Cvar_WinLimit) + extend_roundstep);
+		g_Cvar_WinLimit.IntValue += extend_roundstep;
 	}
-	if (g_Cvar_FragLimit != INVALID_HANDLE && GetConVarInt(g_Cvar_FragLimit) > 0)
+	if (g_Cvar_FragLimit != null && g_Cvar_FragLimit.IntValue > 0)
 	{
-		SetConVarInt(g_Cvar_FragLimit, GetConVarInt(g_Cvar_FragLimit) + extend_fragstep);
+		g_Cvar_FragLimit.IntValue += extend_fragstep;
 	}
 	// ZPS specific
-	if (g_Cvar_ZpsMaxRnds != INVALID_HANDLE && GetConVarInt(g_Cvar_ZpsMaxRnds) > 0)
+	if (g_Cvar_ZpsMaxRnds != null && g_Cvar_ZpsMaxRnds.IntValue > 0)
 	{
-		SetConVarInt(g_Cvar_ZpsMaxRnds, GetConVarInt(g_Cvar_ZpsMaxRnds) + extend_roundstep);
+		g_Cvar_ZpsMaxRnds.IntValue += extend_roundstep;
 	}
-	if (g_Cvar_ZpoMaxRnds != INVALID_HANDLE && GetConVarInt(g_Cvar_ZpoMaxRnds) > 0)
+	if (g_Cvar_ZpoMaxRnds != null && g_Cvar_ZpoMaxRnds.IntValue > 0)
 	{
-		SetConVarInt(g_Cvar_ZpoMaxRnds, GetConVarInt(g_Cvar_ZpoMaxRnds) + extend_roundstep);
+		g_Cvar_ZpoMaxRnds.IntValue += extend_roundstep;
 	}
 
 	// Extend the time limit.
@@ -3930,7 +3931,7 @@ bool IsValidMap(KeyValues kv, KeyValues mapcycle, const char[] groupName, bool i
 		return false;
 	}
 
-	Action	  result;
+	Action result;
 
 	KeyValues new_kv = new KeyValues("umc_rotation");
 	KvCopySubkeys(mapcycle, new_kv);
@@ -3968,7 +3969,7 @@ bool IsValidCat(KeyValues kv, KeyValues mapcycle, bool isNom = false, bool forMa
 		// Return to the category level of the mapcycle and return true if a map was found to be satisfied by the server's player count.
 		if (IsValidMap(kv, mapcycle, catName, isNom, forMapChange))
 		{
-			KvGoBack(kv);
+			kv.GoBack();
 			return true;
 		}
 	}
@@ -4007,7 +4008,7 @@ float GetMapWeight(KeyValues mapcycle, const char[] map, const char[] group)
 	// Get the starting weight
 	g_Current_Weight = 1.0;
 
-	KeyValues kv	 = new KeyValues("umc_rotation");
+	KeyValues kv = new KeyValues("umc_rotation");
 	KvCopySubkeys(mapcycle, kv);
 
 	g_Reweight_Active = true;
@@ -4031,7 +4032,7 @@ float GetMapGroupWeight(KeyValues originalMapcycle, const char[] group)
 {
 	g_Current_Weight = 1.0;
 
-	KeyValues kv	 = new KeyValues("umc_rotation");
+	KeyValues kv = new KeyValues("umc_rotation");
 	KvCopySubkeys(originalMapcycle, kv);
 
 	g_Reweight_Active = true;
@@ -4206,7 +4207,7 @@ ArrayList FilterNominationsArray(ArrayList nominations, bool forMapChange = true
 
 		if (IsValidMapFromCat(kv, mapcycle, mBuffer, .isNom = true, .forMapChange = forMapChange))
 		{
-			PushArrayCell(result, nom);
+			result.Push(nom);
 		}
 
 		CloseHandle(kv);
@@ -4317,11 +4318,11 @@ ArrayList FilterNominations(const char[] key, const char[] value)
 	int		  arraySize = GetArraySize(g_Nominations_Arr);
 	for (int i = 0; i < arraySize; i++)
 	{
-		buffer = GetArrayCell(g_Nominations_Arr, i);
-		GetTrieString(GetArrayCell(g_Nominations_Arr, i), key, temp, sizeof(temp));
+		buffer = g_Nominations_Arr.Get(i);
+		GetTrieString(g_Nominations_Arr.Get(i), key, temp, sizeof(temp));	// Just Use buffer?
 		if (StrEqual(temp, value, false))
 		{
-			PushArrayCell(result, buffer);
+			result.Push(buffer);
 		}
 	}
 	return result;
@@ -4412,7 +4413,7 @@ bool GetRandomCat(KeyValues kv, char[] buffer, int size)
 		return false;
 	}
 
-	int		  index		= 0;											  // counter of categories in the random pool
+	int index = 0;											  // counter of categories in the random pool
 	ArrayList nameArr	= new ArrayList(ByteCountToCells(MAP_LENGTH));	  // Array to store possible category names.
 	ArrayList weightArr = new ArrayList();								  // Array to store possible category weights.
 
