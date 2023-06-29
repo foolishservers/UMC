@@ -26,6 +26,13 @@ For full explainations on the modules, their functions, plugin installation inst
 
 
 # Changelog
+3.7.2 Update (06-29-2023)
+-----------------
+- Updated functions to compile on SM 1.11.
+- Using method and property instead of calling functions.
+- Fixed map vote's item wasn't pushed to ArrayList when all map's weight is 0.0(can caused on restarting server).
+- Recompiled all UMC plugins for SM 1.11 and 1.12.
+
 3.7.1 Update (11-09-2019)
 -----------------
 - Updated functag functions to typedefs in umc-core.inc to be inline with changes presented in SM 1.10.
