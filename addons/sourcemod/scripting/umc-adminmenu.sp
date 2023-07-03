@@ -307,8 +307,8 @@ public void OnPluginStart()
     
     //Initialize our memory arrays
     int numCells = ByteCountToCells(MAP_LENGTH);
-    vote_mem_arr    = CreateArray(numCells);
-    vote_catmem_arr = CreateArray(numCells);
+    vote_mem_arr    = new ArrayList(numCells);
+    vote_catmem_arr = new ArrayList(numCells);
     
     //Manually fire AdminMenu callback.
     TopMenu topmenu;
@@ -625,14 +625,14 @@ StringMap CreateVoteMenuTrie(int client)
 
 void DisplayVoteTypeMenu(int client)
 {
-    Menu menu = new Menu(HandleMV_VoteType, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Vote Type");
+	Menu menu = new Menu(HandleMV_VoteType, MenuAction_DisplayItem|MenuAction_Display);
+	menu.SetTitle("AM Vote Type");
     
-    AddMenuItem(menu, VTMENU_ITEM_INFO_MAP, "Maps");
-    AddMenuItem(menu, VTMENU_ITEM_INFO_GROUP, "Groups");
-    AddMenuItem(menu, VTMENU_ITEM_INFO_TIER, "Tiered");
-    
-    DisplayMenu(menu, client, 0);
+	menu.AddItem(VTMENU_ITEM_INFO_MAP, "Maps");
+	menu.AddItem(VTMENU_ITEM_INFO_GROUP, "Groups");
+	menu.AddItem(VTMENU_ITEM_INFO_TIER, "Tiered");
+
+	menu.Display(client, 0);
 }
 
 public int Handle_MenuTranslation(Menu menu, MenuAction action, int client, int param2)
@@ -695,8 +695,8 @@ public int HandleMV_VoteType(Menu menu, MenuAction action, int param1, int param
 void DisplayAutoManualMenu(int client)
 {
     Menu menu = CreateAutoManualMenu(HandleMV_AutoManual, "AM Populate Vote");
-    SetMenuExitBackButton(menu, true);
-    DisplayMenu(menu, client, 0);
+    menu.ExitBackButton = true;
+    menu.Display(client, 0);
 }
 
 public int HandleMV_AutoManual(Menu menu, MenuAction action, int param1, int param2)
@@ -770,7 +770,7 @@ void DisplayGroupSelectMenu(int client)
         InsertMenuItem(menu, 0, VOTE_POP_STOP_INFO, "Stop Adding Maps"); //TODO: Make Translation
     }
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleMV_Groups(Menu menu, MenuAction action, int param1, int param2)
@@ -832,7 +832,7 @@ void DisplayMapSelectMenu(int client, const char[] group)
     GetTrieValue(menu_tries[client], "ignore_exclusion", ignoreLimits);
     
     Menu newMenu = CreateMapMenu(HandleMV_Maps, group, !ignoreLimits, client);
-    DisplayMenu(newMenu, client, 0);
+    newMenu.Display(client, 0);
 }
 
 public int HandleMV_Maps(Menu menu, MenuAction action, int param1, int param2)
@@ -882,15 +882,15 @@ void AddToVoteList(int client, const char[] map, const char[] group)
 
 void DisplayDefaultsMenu(int client)
 {
-    Menu menu = CreateMenu(HandleMV_Defaults, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Vote Settings");
+    Menu menu = new Menu(HandleMV_Defaults, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Vote Settings");
     
     menu.AddItem(DMENU_ITEM_INFO_DEFAULTS, "AM-VS Defaults");
     menu.AddItem(DMENU_ITEM_INFO_MANUAL, "Manually Choose");
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleMV_Defaults(Menu menu, MenuAction action, int param1, int param2)
@@ -964,8 +964,8 @@ bool VoteAutoPopulated(int client)
 
 void DisplayScrambleMenu(int client)
 {
-    Menu menu = CreateMenu(HandleMV_Scramble, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "AM Scramble Menu");
+    Menu menu = new Menu(HandleMV_Scramble, MenuAction_DisplayItem|MenuAction_Display);
+    menu.SetTitle("AM Scramble Menu");
     
     if (cvar_scramble.BoolValue)
     {
@@ -978,9 +978,9 @@ void DisplayScrambleMenu(int client)
         menu.AddItem(SMENU_ITEM_INFO_YES, "Yes");
     }
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleMV_Scramble(Menu menu, MenuAction action, int param1, int param2)
@@ -1033,7 +1033,7 @@ void DisplayThresholdMenu(int client)
 {
     threshold_trigger[client] = true;
     
-    Menu menu = CreateMenu(HandleMV_Threshold, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(HandleMV_Threshold, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("AM Threshold Menu");
     
     menu.AddItem("", "AM Threshold Menu Message 1", ITEMDRAW_DISABLED);
@@ -1045,16 +1045,16 @@ void DisplayThresholdMenu(int client)
     {
         char fmt2[20];
         FormatEx(fmt2, sizeof(fmt2), "%.f%% (previously entered)", threshold * 100);
-        AddMenuItem(menu, TMENU_ITEM_INFO_PREV, fmt2);
+        menu.AddItem(TMENU_ITEM_INFO_PREV, fmt2);
     }
     
     char fmt[20];
-    FormatEx(fmt, sizeof(fmt), "%.f%% (default)", GetConVarFloat(cvar_vote_threshold) * 100);
-    AddMenuItem(menu, TMENU_ITEM_INFO_DEFAULT, fmt);
+    FormatEx(fmt, sizeof(fmt), "%.f%% (default)", cvar_vote_threshold.FloatValue * 100);
+    menu.AddItem(TMENU_ITEM_INFO_DEFAULT, fmt);
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleMV_Threshold(Menu menu, MenuAction action, int param1, int param2)
@@ -1070,7 +1070,7 @@ public int HandleMV_Threshold(Menu menu, MenuAction action, int param1, int para
             threshold_trigger[param1] = false;
             
             char info[255];
-            GetMenuItem(menu, param2, info, sizeof(info));
+            menu.GetItem(param2, info, sizeof(info));
             
             if (StrEqual(info, TMENU_ITEM_INFO_DEFAULT))
             {
@@ -1158,7 +1158,7 @@ void CancelThresholdMenu(int client)
 
 void DisplayFailActionMenu(int client)
 {
-    Menu menu = CreateMenu(HandleMV_FailAction, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(HandleMV_FailAction, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("AM Fail Action Menu");
     
     if (cvar_fail_action.BoolValue)
@@ -1172,9 +1172,9 @@ void DisplayFailActionMenu(int client)
         menu.AddItem(FAMENU_ITEM_INFO_RUNOFF, "Perform Runoff Vote");
     }
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleMV_FailAction(Menu menu, MenuAction action, int param1, int param2)
@@ -1220,7 +1220,7 @@ void DisplayMaxRunoffMenu(int client)
 {
     runoff_trigger[client] = true;
     
-    Menu menu = CreateMenu(HandleMV_MaxRunoff, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(HandleMV_MaxRunoff, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("AM Max Runoff Menu");
     
     menu.AddItem("", "AM Max Runoff Menu Message 1", ITEMDRAW_DISABLED);
@@ -1233,16 +1233,16 @@ void DisplayMaxRunoffMenu(int client)
     {
         char fmt2[20];
         FormatEx(fmt2, sizeof(fmt2), "%i (previously entered)", runoffs);
-        AddMenuItem(menu, MRMENU_ITEM_INFO_PREV, fmt2);
+        menu.AddItem(MRMENU_ITEM_INFO_PREV, fmt2);
     }
     
     char fmt[20];
     FormatEx(fmt, sizeof(fmt), "%i (default)", GetConVarInt(cvar_runoff_max));
-    AddMenuItem(menu, MRMENU_ITEM_INFO_DEFAULT, fmt);
+    menu.AddItem(MRMENU_ITEM_INFO_DEFAULT, fmt);
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleMV_MaxRunoff(Menu menu, MenuAction action, int param1, int param2)
@@ -1258,7 +1258,7 @@ public int HandleMV_MaxRunoff(Menu menu, MenuAction action, int param1, int para
             runoff_trigger[param1] = false;
             
             char info[255];
-            GetMenuItem(menu, param2, info, sizeof(info));
+            menu.GetItem(param2, info, sizeof(info));
             
             if (StrEqual(info, MRMENU_ITEM_INFO_DEFAULT))
             {
@@ -1350,7 +1350,7 @@ void CancelRunoffMenu(int client)
 
 void DisplayRunoffFailActionMenu(int client)
 {
-    Menu menu = CreateMenu(HandleMV_RunoffFailAction, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(HandleMV_RunoffFailAction, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("AM Runoff Fail Action Menu");
     
     if (cvar_runoff_fail_action.BoolValue)
@@ -1364,9 +1364,9 @@ void DisplayRunoffFailActionMenu(int client)
         menu.AddItem(RFAMENU_ITEM_INFO_ACCEPT, "Accept Winner");
     }
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleMV_RunoffFailAction(Menu menu, MenuAction action, int param1, int param2)
@@ -1400,7 +1400,7 @@ public int HandleMV_RunoffFailAction(Menu menu, MenuAction action, int param1, i
 
 void DisplayExtendMenu(int client)
 {
-    Menu menu = CreateMenu(HandleMV_Extend, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(HandleMV_Extend, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("AM Extend Menu");
     
     if (cvar_extensions.BoolValue)
@@ -1414,8 +1414,8 @@ void DisplayExtendMenu(int client)
         menu.AddItem(EMENU_ITEM_INFO_YES, "Yes");
     }
     
-    SetMenuExitBackButton(menu, true);
-    DisplayMenu(menu, client, 0);
+    menu.ExitBackButton = true;
+    menu.Display(client, 0);
 }
 
 public int HandleMV_Extend(Menu menu, MenuAction action, int param1, int param2)
@@ -1464,7 +1464,7 @@ bool RunoffIsEnabled(int client)
 
 void DisplayDontChangeMenu(int client)
 {
-    Menu menu = CreateMenu(HandleMV_DontChange, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(HandleMV_DontChange, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("AM Don't Change Menu");
     
     if (cvar_dontchange.BoolValue)
@@ -1478,9 +1478,9 @@ void DisplayDontChangeMenu(int client)
         menu.AddItem(DCMENU_ITEM_INFO_YES, "Yes");
     }
     
-    SetMenuExitBackButton(menu, true);
-    
-    DisplayMenu(menu, client, 0);
+    menu.ExitBackButton = true;
+
+    menu.Display(client, 0);
 }
 
 public int HandleMV_DontChange(Menu menu, MenuAction action, int param1, int param2)
@@ -1540,7 +1540,7 @@ bool SkippingAdminFlags(int client)
 
 void DisplayAdminFlagsMenu(int client)
 {
-    Menu menu = CreateMenu(HandleMV_AdminFlags, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(HandleMV_AdminFlags, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("AM Admin Flag Menu");
     
     char flags[64];
@@ -1549,9 +1549,9 @@ void DisplayAdminFlagsMenu(int client)
     menu.AddItem("", "Everyone");
     menu.AddItem(flags, "Admins Only");
     
-    SetMenuExitBackButton(menu, true);
-    
-    DisplayMenu(menu, client, 0);
+    menu.ExitBackButton = true;
+
+    menu.Display(client, 0);
 }
 
 public int HandleMV_AdminFlags(Menu menu, MenuAction action, int param1, int param2)
@@ -1588,7 +1588,7 @@ public int HandleMV_AdminFlags(Menu menu, MenuAction action, int param1, int par
 
 void DisplayChangeWhenMenu(int client)
 {
-    Menu menu = CreateMenu(HandleMV_When, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(HandleMV_When, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("AM Change When Menu");
     
     SetMenuExitBackButton(menu, true);
@@ -1605,7 +1605,7 @@ void DisplayChangeWhenMenu(int client)
     FormatEx(info3, sizeof(info3), "%i", ChangeMapTime_MapEnd);
     menu.AddItem(info3, "End of Map");
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleMV_When(Menu menu, MenuAction action, int param1, int param2)
@@ -1723,11 +1723,11 @@ void DoMapVote(int client)
 
     UMC_StartVote(
         "core",
-        mapcycle, umc_mapcycle, type, GetConVarInt(cvar_vote_time), scramble, vote_start_sound,
-        vote_end_sound, extend, GetConVarFloat(cvar_extend_time), GetConVarInt(cvar_extend_rounds),
-        GetConVarInt(cvar_extend_frags), dontChange, threshold, when, failAction, runoffs,
-        GetConVarInt(cvar_runoff_max), runoffFailAction, runoff_sound,
-        GetConVarBool(cvar_strict_noms), GetConVarBool(cvar_vote_allowduplicates), clients, 
+        mapcycle, umc_mapcycle, type, cvar_vote_time.IntValue, scramble, vote_start_sound,
+        vote_end_sound, extend, cvar_extend_time.FloatValue, cvar_extend_rounds.IntValue,
+        cvar_extend_frags.IntValue, dontChange, threshold, when, failAction, runoffs,
+        cvar_runoff_max.IntValue, runoffFailAction, runoff_sound,
+        cvar_strict_noms.BoolValue, cvar_vote_allowduplicates.BoolValue, clients, 
         numClients, !ignoreExclusion
     );
     
@@ -1839,7 +1839,7 @@ bool FindMapInList(ArrayList maps, const char[] map, const char[] group)
     int size = GetArraySize(maps);
     for (int i = 0; i < size; i++)
     {
-        trie = GetArrayCell(maps, i);
+        trie = maps.Get(i);
         GetTrieString(trie, MAP_TRIE_MAP_KEY, mBuffer, sizeof(mBuffer));
         if (StrEqual(mBuffer, map, false))
         {
@@ -1856,13 +1856,13 @@ bool FindMapInList(ArrayList maps, const char[] map, const char[] group)
 void CreateAMNextMap(int client)
 {
     Menu menu = CreateAutoManualMenu(HandleAM_NextMap, "Select A Map");
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 void CreateAMChangeMap(int client)
 {
     Menu menu = CreateAutoManualMenu(HandleAM_ChangeMap, "Select A Map");
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleAM_ChangeMap(Menu menu, MenuAction action, int param1, int param2)
@@ -1912,7 +1912,7 @@ void ManualChangeMap(int client)
     }
     
     Menu menu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, client);
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int HandleGM_ChangeMap(Menu menu, MenuAction action, int param1, int param2)
@@ -1947,7 +1947,7 @@ public int HandleGM_ChangeMap(Menu menu, MenuAction action, int param1, int para
             }
             
             Menu newMenu = CreateMapMenu(HandleMM_ChangeMap, group, !ignoreExclude, param1);
-            DisplayMenu(newMenu, param1, 0);
+            newMenu.Display(param1, 0);
         }
         case MenuAction_Cancel:
         {
@@ -2006,7 +2006,7 @@ public int HandleMM_ChangeMap(Menu menu, MenuAction action, int param1, int para
                 }
             
                 Menu newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
-                DisplayMenu(newMenu, param1, 0);
+                newMenu.Display(param1, 0);
             }
             else
             {
@@ -2023,20 +2023,20 @@ public int HandleMM_ChangeMap(Menu menu, MenuAction action, int param1, int para
 
 void ManualChangeMapWhen(int client)
 {
-    Menu menu = CreateMenu(Handle_ManualChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(Handle_ManualChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("AM Change When Menu");
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
 
     char info1[2];
     FormatEx(info1, sizeof(info1), "%i", ChangeMapTime_Now);
-    AddMenuItem(menu, info1, "Now");
+    menu.AddItem(info1, "Now");
     
     char info2[2];
     FormatEx(info2, sizeof(info2), "%i", ChangeMapTime_RoundEnd);
-    AddMenuItem(menu, info2, "End of Round");
+    menu.AddItem(info2, "End of Round");
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int Handle_ManualChangeWhenMenu(Menu menu, MenuAction action, int param1, int param2)
@@ -2072,7 +2072,7 @@ public int Handle_ManualChangeWhenMenu(Menu menu, MenuAction action, int param1,
                 }
             
                 Menu newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
-                DisplayMenu(newMenu, param1, 0);
+                newMenu.Display(param1, 0);
             }
             else
             {
@@ -2105,20 +2105,20 @@ void DoManualMapChange(int client)
 
 void AutoChangeMap(int client)
 {
-    Menu menu = CreateMenu(Handle_AutoChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(Handle_AutoChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
     SetMenuTitle(menu, "AM Change When Menu");
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
 
     char info1[2];
     FormatEx(info1, sizeof(info1), "%i", ChangeMapTime_Now);
-    AddMenuItem(menu, info1, "Now");
+    menu.AddItem(info1, "Now");
     
     char info2[2];
     FormatEx(info2, sizeof(info2), "%i", ChangeMapTime_RoundEnd);
-    AddMenuItem(menu, info2, "End of Round");
+    menu.AddItem(info2, "End of Round");
     
-    DisplayMenu(menu, client, 0);
+    menu.Display(client, 0);
 }
 
 public int Handle_AutoChangeWhenMenu(Menu menu, MenuAction action, int param1, int param2)
@@ -2249,7 +2249,7 @@ public int HandleGM_NextMap(Menu menu, MenuAction action, int param1, int param2
             }
             
             Menu newMenu = CreateMapMenu(HandleMM_NextMap, group, !ignoreExclude, param1);
-            DisplayMenu(newMenu, param1, 0);
+            newMenu.Display(param1, 0);
         }
         case MenuAction_Cancel:
         {
@@ -2308,7 +2308,7 @@ public int HandleMM_NextMap(Menu menu, MenuAction action, int param1, int param2
                 }
             
                 Menu newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
-                DisplayMenu(newMenu, param1, 0);
+                newMenu.Display(param1, 0);
             }
             else
             {
@@ -2376,7 +2376,7 @@ stock ArrayList FetchMapsFromGroup(KeyValues kv, const char[] group)
     KeyValues mapcycle = new KeyValues("umc_rotation");
     KvCopySubkeys(kv, mapcycle);
 
-    if (!KvJumpToKey(kv, group))
+    if (!kv.JumpToKey(group))
     {
         LogError("Cannot jump to map group '%s'", group);
         CloseHandle(mapcycle);
@@ -2457,10 +2457,10 @@ void FilterGroupArrayForAdmin(ArrayList groups, int admin)
 Menu CreateGroupMenu(MenuHandler handler, bool limits, int client)
 {
     //Initialize the menu
-    Menu menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(handler, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle("Select A Group");
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
     
     map_kv.Rewind();
     
@@ -2494,28 +2494,28 @@ Menu CreateGroupMenu(MenuHandler handler, bool limits, int client)
         GetArrayString(groupArray, i, group, sizeof(group));
         if (!limits)
         {
-            KvJumpToKey(umc_mapcycle, group);
-            if (!KvGotoFirstSubKey(umc_mapcycle))
+            umc_mapcycle.JumpToKey(group);
+            if (!umc_mapcycle.GotoFirstSubKey())
             {
-                KvGoBack(umc_mapcycle);
+                umc_mapcycle.GoBack();
                 continue;
             }
-            KvGoBack(umc_mapcycle);
-            KvGoBack(umc_mapcycle);
+            umc_mapcycle.GoBack();
+            umc_mapcycle.GoBack();
             
-            if (GroupExcludedPreviouslyPlayed(group, vote_catmem_arr, GetConVarInt(cvar_vote_catmem)))
+            if (GroupExcludedPreviouslyPlayed(group, vote_catmem_arr, cvar_vote_catmem.IntValue))
             {
                 FormatEx(buffer, sizeof(buffer), "%s (!)", group);
-                AddMenuItem(menu, group, buffer);
+                menu.AddItem(group, buffer);
             }
             else
             {
-                AddMenuItem(menu, group, group);
+                menu.AddItem(group, group);
             }
         }
         else
         {
-            AddMenuItem(menu, group, group);
+            menu.AddItem(group, group);
         }
     }
     
@@ -2530,12 +2530,12 @@ Menu CreateGroupMenu(MenuHandler handler, bool limits, int client)
 Menu CreateMapMenu(MenuHandler handler, const char[] group, bool limits, int client)
 {
     //Initialize the menu
-    Menu menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(handler, MenuAction_DisplayItem|MenuAction_Display);
     
     //Set the title.
     menu.SetTitle("Select A Map");
     
-    SetMenuExitBackButton(menu, true);
+    menu.ExitBackButton = true;
     
     map_kv.Rewind();
     
@@ -2612,7 +2612,7 @@ Menu CreateMapMenu(MenuHandler handler, const char[] group, bool limits, int cli
         PushArrayString(menuItems, mapBuff);
         PushArrayString(menuItemDisplay, display);
         
-        KvRewind(umc_mapcycle);
+        umc_mapcycle.Rewind();
     }
     
     //Add all maps from the nominations array to the menu.
@@ -2634,7 +2634,7 @@ Menu CreateMapMenu(MenuHandler handler, const char[] group, bool limits, int cli
 //Builds a menu with Auto and Manual options.
 Menu CreateAutoManualMenu(MenuHandler handler, const char[] title)
 {
-    Menu menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
+    Menu menu = new Menu(handler, MenuAction_DisplayItem|MenuAction_Display);
     menu.SetTitle(title);
     
     menu.AddItem(AMMENU_ITEM_INFO_AUTO, "Auto Select");
